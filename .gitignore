@@ -1,0 +1,9 @@
+*.pvd
+*.vtu
+*.pyc
+times.json
+*.msh
+*.geo_unrolled
+*.mp4
+*.png
+*.vscode
