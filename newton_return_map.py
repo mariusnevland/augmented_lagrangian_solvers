@@ -76,11 +76,12 @@ class NewtonReturnMap:
             friction_bound = -1.0 * friction_coeff * t_n_new
             # Return map in tangential direction, using the newly
             # obtained normal tractions.
+            trust_region = 1
             for i, (bound, t_t) in enumerate(zip(friction_bound, t_t_new)):
-                if np.linalg.norm(t_t) > bound:
+                if np.linalg.norm(t_t) > trust_region * bound:
                     # Tangential traction exceeds friction bound,
                     # project back to the boundary.
-                    t_t_new[i] = bound * t_t / np.linalg.norm(t_t)
+                    t_t_new[i] = trust_region * bound * t_t / np.linalg.norm(t_t)
 
             # Put normal and tangential tractions in the right positions of the global
             # traction array.
