@@ -4,8 +4,9 @@ from typing import Literal, Optional
 from functools import partial
 
 
-# The classical augmented Lagrangian based return map algorithm, implemented here as an implicit Uzawa algorithm.
-# NB! To run a model using this algorithm, you need to call run_implicit_uzawa_model.
+# The implicit variant of the Uzawa algorithm, where the contact conditions are not decoupled
+# from the rest of the system. 
+# NB! To run a model using the implicit Uzawa algorithm, you need to call run_implicit_uzawa_model.
 
 class ClassicalReturnMap:
 
@@ -29,90 +30,76 @@ class ClassicalReturnMap:
     def contact_mechanics_tangential_constant(self, subdomains: list[pp.Grid]) -> pp.ad.Scalar:
 
         return pp.ad.Scalar(self.c_t, name="contact_mechanics_tangential_constant")
-
+    
     def normal_fracture_deformation_equation(
-            self,
-            subdomains: list[pp.Grid]
+        self, subdomains: list[pp.Grid]
     ) -> pp.ad.Operator:
         """Regularized version of the normal fracture deformation equation."""
 
-        num_cells: int = sum([sd.num_cells for sd in subdomains])
+        # Variables
         nd_vec_to_normal = self.normal_component(subdomains)
+        # The normal component of the contact traction and the displacement jump.
         t_n: pp.ad.Operator = nd_vec_to_normal @ self.contact_traction(subdomains)
         u_n: pp.ad.Operator = nd_vec_to_normal @ self.displacement_jump(subdomains)
 
+        # Maximum function
+        num_cells: int = sum([sd.num_cells for sd in subdomains])
         max_function = pp.ad.Function(pp.ad.maximum, "max_function")
         zeros_frac = pp.ad.DenseArray(np.zeros(num_cells), "zeros_frac")
         t_n_prev_ad = pp.ad.DenseArray(self.t_n_prev, "t_n_prev")
-        equation: pp.ad.Operator = t_n + max_function(zeros_frac, -t_n_prev_ad -
-                                   self.contact_mechanics_normal_constant(subdomains) *
-                                   (u_n - self.fracture_gap(subdomains)))
+
+        # The complimentarity condition
+        equation: pp.ad.Operator = t_n + max_function(
+            pp.ad.Scalar(-1.0) * t_n_prev_ad
+            - self.contact_mechanics_normal_constant(subdomains)
+            * (u_n - self.fracture_gap(subdomains)),
+            zeros_frac,
+        )
         equation.set_name("normal_fracture_deformation_equation")
         return equation
-
+    
     def tangential_fracture_deformation_equation(
-        self, subdomains: list[pp.Grid]
+        self,
+        subdomains: list[pp.Grid],
     ) -> pp.ad.Operator:
-        """Regularized version of the tangential fracture deformation equation."""
-
-        tangential_basis: list[pp.ad.SparseArray] = self.basis(
-            subdomains, dim=self.nd - 1  # type: ignore[call-arg]
-        )
-        scalar_to_tangential = pp.ad.sum_operator_list(
-            [e_i for e_i in tangential_basis]
-        )
 
         num_cells = sum([sd.num_cells for sd in subdomains])
-        nd_vec_to_normal = self.normal_component(subdomains)
         nd_vec_to_tangential = self.tangential_component(subdomains)
-        t_n: pp.ad.Operator = nd_vec_to_normal @ self.contact_traction(subdomains)
-        u_n: pp.ad.Operator = nd_vec_to_normal @ self.displacement_jump(subdomains)
+        tangential_basis = self.basis(subdomains, dim=self.nd - 1)
+
+        scalar_to_tangential = pp.ad.sum_projection_list(tangential_basis)
+
         t_t: pp.ad.Operator = nd_vec_to_tangential @ self.contact_traction(subdomains)
-        u_t: pp.ad.Operator = nd_vec_to_tangential @ self.displacement_jump(subdomains)
+        u_t: pp.ad.Operator = nd_vec_to_tangential @ self.plastic_displacement_jump(
+            subdomains
+        )
         u_t_increment: pp.ad.Operator = pp.ad.time_increment(u_t)
+
+        ones_frac = pp.ad.DenseArray(np.ones(num_cells * (self.nd - 1)))
+        zeros_frac = pp.ad.DenseArray(np.zeros(num_cells))
 
         f_max = pp.ad.Function(pp.ad.maximum, "max_function")
         f_norm = pp.ad.Function(partial(pp.ad.l2_norm, self.nd - 1), "norm_function")
 
-        fric_bound: pp.ad.Operator = pp.ad.Scalar(-1.0) * \
-                                     self.friction_coefficient(subdomains) * t_n
-
-        ones_frac = pp.ad.DenseArray(np.ones(num_cells * (self.nd - 1)))
-        b_p = fric_bound
-        b_p_tang = scalar_to_tangential @ b_p
-
-        tol = self.solid.open_state_tolerance()
-
-        f_characteristic = pp.ad.Function(
-            partial(pp.ad.functions.characteristic_function, tol),
-            "characteristic_function_for_zero_normal_traction",
-        )
-        characteristic: pp.ad.Operator = scalar_to_tangential @ f_characteristic(b_p)
-
-        characteristic.set_name("characteristic_function_of_b_p")
-
         c_num_as_scalar = self.contact_mechanics_tangential_constant(subdomains)
-        c_num = pp.ad.sum_operator_list(
-            [e_i * c_num_as_scalar * e_i.T for e_i in tangential_basis]
-        )
-
         t_t_prev_ad = pp.ad.DenseArray(self.t_t_prev, "t_t_prev")
-        tangential_sum = t_t_prev_ad + c_num @ u_t_increment
+        tangential_sum = t_t_prev_ad + (scalar_to_tangential @ c_num_as_scalar) * u_t_increment
+
         norm_tangential_sum = f_norm(tangential_sum)
+        norm_tangential_sum.set_name("norm_tangential")
+
+        b_p = f_max(self.friction_bound(subdomains), zeros_frac)
+        b_p.set_name("bp")
+
+        bp_tang = (scalar_to_tangential @ b_p) * tangential_sum
+
         maxbp_abs = scalar_to_tangential @ f_max(b_p, norm_tangential_sum)
 
+        characteristic = self.contact_mechanics_open_state_characteristic(subdomains)
+
         equation: pp.ad.Operator = (ones_frac - characteristic) * (
-            b_p_tang * tangential_sum - maxbp_abs * t_t
+            bp_tang - maxbp_abs * t_t
         ) + characteristic * t_t
-
-        # The equation can alternatively be written in fixed-point form as below,
-        # although the formulation above generally seems to give better results.
-
-        # denominator = (characteristic - ones_frac) * maxbp_abs + characteristic
-        # numerator = (characteristic - ones_frac) * b_p_tang * tangential_sum
-        #
-        # equation: pp.ad.Operator = t_t - (numerator / denominator)
-
         equation.set_name("tangential_fracture_deformation_equation")
         return equation
 

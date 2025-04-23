@@ -92,10 +92,10 @@ def run_time_dependent_uzawa_model(model, params: dict) -> None:
             # Assemble residual of the original, non-regularized contact equations,
             # to be used in the convergence check.
             norm_eqn = \
-                pp.momentum_balance.MomentumBalance.normal_fracture_deformation_equation\
+                pp.contact_mechanics.ContactMechanicsEquations.normal_fracture_deformation_equation\
                     (model, model.mdg.subdomains(dim=model.nd-1))
             tang_eqn = \
-                pp.momentum_balance.MomentumBalance.tangential_fracture_deformation_equation\
+                pp.contact_mechanics.ContactMechanicsEquations.tangential_fracture_deformation_equation\
                     (model, model.mdg.subdomains(dim=model.nd-1))
             res_tang = tang_eqn.value(model.equation_system,state=val_current)
             res_norm = norm_eqn.value(model.equation_system,state=val_current)
@@ -135,7 +135,7 @@ def run_time_dependent_uzawa_model(model, params: dict) -> None:
         )
         uzawa_algorithm()
 
-    while model.time_manager.time < model.time_manager.time_final:
+    while not model.time_manager.final_time_reached():
         time_step()
 
         # TODO: Is it necessary to reassemble the equations here?

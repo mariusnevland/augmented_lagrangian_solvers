@@ -2,6 +2,7 @@ import numpy as np
 import porepy as pp
 import logging
 from newton_return_map import *
+from newton_return_map_old import *
 from newton_return_map_test import *
 from classical_return_map import *
 from run_uzawa_model import *
@@ -54,8 +55,7 @@ def run_and_report_single(Model,
 
         class Simulation(ContactMechanicsConstant,
                          SumTimeSteps,
-                         NewtonReturnMapTest,
-                         # NewtonReturnMap,
+                         NewtonReturnMap,
                          Model):
             pass
         
@@ -73,7 +73,7 @@ def run_and_report_single(Model,
         except RuntimeError as e:
             logger.warning(f"Runtime error: {e}")
             itr = 0
-    if solver == "ExplicitUzawa" or solver == "ImplicitUzawa":
+    if solver == "ClassicalReturnMap":
         try:
             run_time_dependent_uzawa_model(model, params)
             itr = model.total_itr
