@@ -127,7 +127,7 @@ class PressureConstraintWell:
         super().update_time_dependent_ad_arrays()
  
         # Update injection pressure
-        current_injection_pressure = self.units.convert_units(2e7, "Pa") + self.units.convert_units(1e7, "Pa")
+        current_injection_pressure = self.units.convert_units(2e7, "Pa") + self.units.convert_units(1.5*1e7, "Pa")
         for sd in self.mdg.subdomains(return_data=False):
             pp.set_solution_values(
                 name="current_injection_pressure",
