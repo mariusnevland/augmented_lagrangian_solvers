@@ -56,13 +56,14 @@ class EvenMoreFractures:
         frac11 = pp.LineFracture(1000 * np.array([[0.9, 0.45], [0.9, 0.15]]).T / self.units.m)
         frac12 = pp.LineFracture(1000 * np.array([[0.7, 0.1], [1.0, 0.25]]).T / self.units.m)
         frac13 = pp.LineFracture(1000 * np.array([[0.75, 0.4], [1.0, 0.7]]).T / self.units.m)
-        frac14 = pp.LineFracture(1000 * np.array([[1.27, 0.6], [1.1, 0.85]]).T / self.units.m)
+        frac14 = pp.LineFracture(1000 * np.array([[1.0, 0.1], [1.0, 0.35]]).T / self.units.m)
         frac15 = pp.LineFracture(1000 * np.array([[1.5, 0.5], [1.75, 0.2]]).T / self.units.m)
         frac16 = pp.LineFracture(1000 * np.array([[0.7, 0.38], [0.83, 0.1]]).T / self.units.m)
         frac17 = pp.LineFracture(1000 * np.array([[0.5, 0.83], [0.85, 0.65]]).T / self.units.m)
         frac18 = pp.LineFracture(1000 * np.array([[1.1, 0.15], [1.4, 0.4]]).T / self.units.m)
+        frac19 = pp.LineFracture(1000 * np.array([[0.7, 0.25], [1.2, 0.25]]).T / self.units.m)
         self._fractures = [frac_center, frac1, frac2, frac3, frac4, frac5, frac6, frac7, frac8, frac9,
-                           frac10, frac11, frac12, frac13, frac14, frac15, frac16, frac17, frac18]
+                           frac10, frac11, frac13, frac14, frac15, frac17, frac19]
 
     def grid_type(self) -> Literal["simplex", "cartesian", "tensor_grid"]:
         return self.params.get("grid_type", "simplex")

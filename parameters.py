@@ -45,7 +45,7 @@ params_injection_2D = {
     "max_iterations": 100,
     "material_constants": material_constants,
     "time_manager": pp.TimeManager(
-        schedule=[0, 0.1 * pp.DAY], dt_init=0.1 * pp.DAY, constant_dt=True
+        schedule=[0, 0.5 * pp.DAY], dt_init=0.1 * pp.DAY, constant_dt=True
     ),
     "units": units,
     "nl_convergence_tol": nl_convergence_tol,
