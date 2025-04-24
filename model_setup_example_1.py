@@ -70,7 +70,32 @@ class EvenMoreFractures:
     def meshing_arguments(self) -> dict:
         mesh_args = {"cell_size": 1000 * 0.07 / self.units.m}
         return mesh_args
+    
 
+class VerticalHorizontalNetwork:
+
+    def set_domain(self) -> None:
+        self._domain = pp.Domain(
+            bounding_box={
+                "xmin": 0 / self.units.m,
+                "ymin": 0 / self.units.m,
+                "xmax": 2000 / self.units.m,
+                "ymax": 1000 / self.units.m,
+            }
+        )
+
+    def set_fractures(self) -> None:
+        frac_center = pp.LineFracture(1000 * np.array([[0.8, 0.3], [1.2, 0.6]]).T / self.units.m)
+        frac11 = pp.LineFracture(1000 * np.array([[0.9, 0.45], [0.9, 0.15]]).T / self.units.m)
+        frac19 = pp.LineFracture(1000 * np.array([[0.7, 0.25], [1.2, 0.25]]).T / self.units.m)
+        self._fractures = [frac_center, frac11, frac19]
+
+    def grid_type(self) -> Literal["simplex", "cartesian", "tensor_grid"]:
+        return self.params.get("grid_type", "simplex")
+
+    def meshing_arguments(self) -> dict:
+        mesh_args = {"cell_size": 1000 * 0.07 / self.units.m}
+        return mesh_args
 
 class AnisotropicStressBC:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
@@ -90,9 +115,9 @@ class AnisotropicStressBC:
         values[0, bounds.north] = self.units.convert_units(0, "Pa") * boundary_grid.cell_volumes[bounds.north]
         values[1, bounds.north] = self.units.convert_units(-lith, "Pa") * boundary_grid.cell_volumes[bounds.north]
         values[1, bounds.east] = self.units.convert_units(0, "Pa") * boundary_grid.cell_volumes[bounds.east]
-        values[0, bounds.east] = self.units.convert_units(-3/4*lith, "Pa") * boundary_grid.cell_volumes[bounds.east]
+        values[0, bounds.east] = self.units.convert_units(-0.7*lith, "Pa") * boundary_grid.cell_volumes[bounds.east]
         values[1, bounds.west] = self.units.convert_units(0, "Pa") * boundary_grid.cell_volumes[bounds.west]
-        values[0, bounds.west] = self.units.convert_units(3/4*lith, "Pa") * boundary_grid.cell_volumes[bounds.west]
+        values[0, bounds.west] = self.units.convert_units(0.7*lith, "Pa") * boundary_grid.cell_volumes[bounds.west]
         values = values.ravel("F")
         return values
 
@@ -127,7 +152,7 @@ class PressureConstraintWell:
         super().update_time_dependent_ad_arrays()
  
         # Update injection pressure
-        current_injection_pressure = self.units.convert_units(2e7, "Pa") + self.units.convert_units(1.5*1e7, "Pa")
+        current_injection_pressure = self.units.convert_units(2e7, "Pa") + self.units.convert_units(1e7, "Pa")
         for sd in self.mdg.subdomains(return_data=False):
             pp.set_solution_values(
                 name="current_injection_pressure",

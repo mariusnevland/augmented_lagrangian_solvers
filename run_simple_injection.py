@@ -11,7 +11,7 @@ from convergence_metrics import *
 from export_iterations import *
 from contact_mechanics_mixins import *
 
-class SimpleInjectionInit(EvenMoreFractures,
+class SimpleInjectionInit(VerticalHorizontalNetwork,
                           AnisotropicStressBC,
                           ConstantPressureBC,
                           ConstrainedPressureEquaton,
@@ -46,7 +46,7 @@ class InitialCondition:
 
 
 class SimpleInjection(InitialCondition,
-                      EvenMoreFractures,
+                      VerticalHorizontalNetwork,
                       PressureConstraintWell,
                       AnisotropicStressBC,
                       ConstantPressureBC,
