@@ -86,10 +86,11 @@ class VerticalHorizontalNetwork:
         )
 
     def set_fractures(self) -> None:
-        frac_center = pp.LineFracture(1000 * np.array([[0.8, 0.3], [1.2, 0.6]]).T / self.units.m)
-        frac11 = pp.LineFracture(1000 * np.array([[0.9, 0.45], [0.9, 0.15]]).T / self.units.m)
-        frac19 = pp.LineFracture(1000 * np.array([[0.7, 0.25], [1.2, 0.25]]).T / self.units.m)
-        self._fractures = [frac_center, frac11, frac19]
+        frac_injection = pp.LineFracture(1000 * np.array([[0.8, 0.3], [1.2, 0.6]]).T / self.units.m)
+        frac_vertical = pp.LineFracture(1000 * np.array([[0.9, 0.45], [0.9, 0.15]]).T / self.units.m)
+        frac_diag = pp.LineFracture(1000 * np.array([[0.9, 0.45], [1.05, 0.15]]).T / self.units.m)
+        frac_horizontal = pp.LineFracture(1000 * np.array([[0.7, 0.25], [1.2, 0.25]]).T / self.units.m)
+        self._fractures = [frac_injection, frac_diag, frac_horizontal]
 
     def grid_type(self) -> Literal["simplex", "cartesian", "tensor_grid"]:
         return self.params.get("grid_type", "simplex")
