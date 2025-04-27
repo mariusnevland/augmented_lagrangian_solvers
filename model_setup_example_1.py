@@ -27,6 +27,39 @@ class SimpleFractureNetwork:
     def meshing_arguments(self) -> dict:
         mesh_args = {"cell_size": 1000 * 0.07 / self.units.m}
         return mesh_args
+    
+
+class MoreFractures:
+
+    def set_domain(self) -> None:
+        self._domain = pp.Domain(
+            bounding_box={
+                "xmin": 0 / self.units.m,
+                "ymin": 0 / self.units.m,
+                "xmax": 2000 / self.units.m,
+                "ymax": 1000 / self.units.m,
+            }
+        )
+
+    def set_fractures(self) -> None:
+        frac_center = pp.LineFracture(1000 * np.array([[0.8, 0.3], [1.2, 0.6]]).T / self.units.m)
+        frac1 = pp.LineFracture(1000 * np.array([[0.6, 0.7], [1.3, 0.4]]).T / self.units.m)
+        frac2 = pp.LineFracture(1000 * np.array([[0.5, 0.2], [0.8, 0.8]]).T / self.units.m)
+        frac3 = pp.LineFracture(1000 * np.array([[0.1, 0.7], [0.3, 0.8]]).T / self.units.m)
+        frac4 = pp.LineFracture(1000 * np.array([[0.3, 0.1], [0.6, 0.7]]).T / self.units.m)
+        frac5 = pp.LineFracture(1000 * np.array([[1.1, 1.5], [1.4, 1.8]]).T / self.units.m)
+        frac6 = pp.LineFracture(1000 * np.array([[0.9, 0.3], [1.6, 0.8]]).T / self.units.m)
+        frac7 = pp.LineFracture(1000 * np.array([[0.1, 0.9], [0.35, 0.5]]).T / self.units.m)
+        frac8 = pp.LineFracture(1000 * np.array([[1.4, 0.9], [1.8, 0.5]]).T / self.units.m)
+        frac9 = pp.LineFracture(1000 * np.array([[1.6, 0.1], [1.9, 0.4]]).T / self.units.m)
+        self._fractures = [frac_center, frac1, frac2, frac3, frac4, frac5, frac6, frac7, frac8, frac9]
+
+    def grid_type(self) -> Literal["simplex", "cartesian", "tensor_grid"]:
+        return self.params.get("grid_type", "simplex")
+
+    def meshing_arguments(self) -> dict:
+        mesh_args = {"cell_size": 1000 * 0.07 / self.units.m}
+        return mesh_args
 
 
 class EvenMoreFractures:
@@ -90,7 +123,8 @@ class VerticalHorizontalNetwork:
         frac_vertical = pp.LineFracture(1000 * np.array([[0.9, 0.45], [0.9, 0.15]]).T / self.units.m)
         frac_diag = pp.LineFracture(1000 * np.array([[0.9, 0.45], [1.05, 0.15]]).T / self.units.m)
         frac_horizontal = pp.LineFracture(1000 * np.array([[0.7, 0.25], [1.2, 0.25]]).T / self.units.m)
-        self._fractures = [frac_injection, frac_diag, frac_horizontal]
+        # self._fractures = [frac_injection, frac_diag, frac_horizontal]
+        self._fractures = [frac_injection]
 
     def grid_type(self) -> Literal["simplex", "cartesian", "tensor_grid"]:
         return self.params.get("grid_type", "simplex")
@@ -139,6 +173,23 @@ class ConstantPressureBC:
         return values
     
 
+class PressureGradient2D:
+    
+    def bc_type_darcy_flux(self, sd: pp.Grid) -> pp.BoundaryCondition:
+        all_bf, east, west, north, south, _, _ = self.domain_boundary_sides(sd)
+        # Dirichlet (pressure) conditions west and east, Neumann (flux) conditions
+        # north and south.
+        return pp.BoundaryCondition(sd, east + west + north + south, "dir")
+
+    def bc_values_pressure(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
+        bounds = self.domain_boundary_sides(boundary_grid)
+        # Hydrostatic pressure at 2 km, slightly higher pressure on left boundary
+        # # to simulate an injection well.
+        values = self.units.convert_units(2e7, "Pa") * \
+                 np.ones(boundary_grid.num_cells)
+        values[bounds.west] = self.units.convert_units(3e7, "Pa")
+        return values 
+
 class ConstrainedPressureEquaton:
  
      def mass_balance_equation(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
@@ -154,7 +205,7 @@ class PressureConstraintWell:
         super().update_time_dependent_ad_arrays()
  
         # Update injection pressure
-        current_injection_pressure = self.units.convert_units(2e7, "Pa") + self.units.convert_units(1e7, "Pa")
+        current_injection_pressure = self.units.convert_units(2e7, "Pa") + self.units.convert_units(0.1*1e7, "Pa")
         for sd in self.mdg.subdomains(return_data=False):
             pp.set_solution_values(
                 name="current_injection_pressure",

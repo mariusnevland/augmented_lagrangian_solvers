@@ -2,10 +2,8 @@ import numpy as np
 import porepy as pp
 import copy
 from model_setup_example_1 import *
-# from model_setup_old import *
 from run_and_report_single import *
 from parameters import *
-# from parameters_old import *
 from cubic_normal_permeability import *
 from convergence_metrics import *
 from export_iterations import *
@@ -59,8 +57,8 @@ class SimpleInjection(InitialCondition,
                       pp.poromechanics.Poromechanics):
     pass
 
-c_values = [1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2]
-solvers = ["Newton", "NewtonReturnMap"]
+c_values = [1e0]
+solvers = ["Newton"]
 
 itr_list = []
 for solver in solvers:
