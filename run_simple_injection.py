@@ -9,7 +9,7 @@ from convergence_metrics import *
 from export_iterations import *
 from contact_mechanics_mixins import *
 
-class SimpleInjectionInit(EvenMoreFractures,
+class SimpleInjectionInit(MoreFocusedFractures,
                           AnisotropicStressBC,
                           ConstantPressureBC,
                           ConstrainedPressureEquaton,
@@ -44,7 +44,7 @@ class InitialCondition:
 
 
 class SimpleInjection(InitialCondition,
-                      EvenMoreFractures,
+                      MoreFocusedFractures,
                       PressureConstraintWell,
                       AnisotropicStressBC,
                       ConstantPressureBC,
@@ -57,8 +57,8 @@ class SimpleInjection(InitialCondition,
                       pp.poromechanics.Poromechanics):
     pass
 
-c_values = [1e0]
-solvers = ["Newton"]
+c_values = [1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2]
+solvers = ["NewtonReturnMap"]
 
 itr_list = []
 for solver in solvers:
