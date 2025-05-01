@@ -2,10 +2,10 @@ import numpy as np
 import porepy as pp
 import logging
 from newton_return_map import *
-from newton_return_map_old import *
 from newton_return_map_test import *
 from classical_return_map import *
 from run_uzawa_model import *
+from cycle_check import *
 
 logger = logging.getLogger(__name__)
 # Run a simulation with a given nonlinear solver, and report on the number of
@@ -58,12 +58,21 @@ def run_and_report_single(Model,
                          NewtonReturnMap,
                          Model):
             pass
+
+    elif solver == "SafeNewtonReturnMap":
+
+        class Simulation(ContactMechanicsConstant,
+                         SumTimeSteps,
+                         CycleCheck,
+                         SafeNewtonReturnMap,
+                         Model):
+            pass
         
     else:
         raise NotImplementedError("Invalid nonlinear solver.")
 
     model = Simulation(params)
-    if solver == "Newton" or solver == "NewtonReturnMap":
+    if solver in {"Newton", "NewtonReturnMap", "SafeNewtonReturnMap"}:
         try:
             pp.run_time_dependent_model(model, params)
             itr = model.total_itr
