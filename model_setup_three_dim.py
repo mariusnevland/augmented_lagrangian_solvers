@@ -42,8 +42,8 @@ class EllipticFractureNetwork:
                 400,
                 500,
                 0.2 ,
+                0,
                 np.pi / 2,
-                np.pi / 4,
             )
         f_5 = pp.create_elliptic_fracture(
                 np.array([1100, 1100, 1600]),
@@ -92,7 +92,7 @@ class LithoStaticTraction3D:
         cell_volumes = boundary_grid.cell_volumes
         depth = self._depth(boundary_grid.cell_centers[2,:])
         lithostatic = self.lithostatic_pressure(depth)
-        scale_x, scale_y, scale_z = 3/4, 5/4, 1
+        scale_x, scale_y, scale_z = 0.6, 0.6, 1
         values[0, east] = -scale_x * lithostatic[east] * cell_volumes[east]
         values[2, top] = -scale_z * lithostatic[top] * cell_volumes[top]
         values[0, west] = scale_x * lithostatic[west] * cell_volumes[west]
@@ -263,4 +263,90 @@ class HydrostaticPressureBC(HydrostaticPressure):
             ]
 
         return pressure
+    
+
+class HydroStaticPressureInitialization(HydrostaticPressure):
+
+    def mass_balance_equation(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
+        """Overwrites mass balance equation to set the pressure equal to the hydrostatic pressure."""
+        hydrostatic_pressure = pp.ad.TimeDependentDenseArray(
+            "hydrostatic_pressure", subdomains
+        )
+        constrained_eq = self.pressure(subdomains) - hydrostatic_pressure
+        constrained_eq.set_name("mass_balance_equation_with_constrained_pressure")
+        constrained_eq.set_name("new mass balance")
+        return constrained_eq
+    
+
+class PressureConstraintWell3D:
+    """Pressurize specific fractures in their center."""
+
+    def _fracture_center_cell(self, sd: pp.Grid) -> np.ndarray:
+        # Compute the fracture cell that is closest to the center of the fracture
+        mean_coo = np.mean(sd.cell_centers, axis=1).reshape((3, 1))
+        center_cell = sd.closest_cell(mean_coo)
+        return center_cell
+
+    def update_time_dependent_ad_arrays(self) -> None:
+        """Set current injection pressure."""
+        super().update_time_dependent_ad_arrays()
+
+        # Update injection pressure
+        current_injection_overpressure = 1e7
+        for sd in self.mdg.subdomains(return_data=False):
+            pp.set_solution_values(
+                name="current_injection_overpressure",
+                values=np.array(
+                    [self.units.convert_units(current_injection_overpressure, "Pa")]
+                ),
+                data=self.mdg.subdomain_data(sd),
+                iterate_index=0,
+            )
+
+    def mass_balance_equation(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
+        std_eq = super().mass_balance_equation(subdomains)
+
+        # Need to embedd in full domain
+        sd_indicator = [np.zeros(sd.num_cells) for sd in subdomains]
+
+        # Pick the only subdomain
+        fracture_sds = [sd for sd in subdomains if sd.dim == self.nd - 1]
+ 
+        if len(fracture_sds) == 0:
+            return std_eq
+ 
+        # Pick a single fracture
+        well_sd = fracture_sds[0]
+ 
+        for i, sd in enumerate(subdomains):
+            if sd == well_sd:
+ 
+                well_loc_ind = self._fracture_center_cell(sd)
+                sd_indicator[i][well_loc_ind] = 1
+
+        # Characteristic functions
+        indicator = np.concatenate(sd_indicator)
+        reverse_indicator = 1 - indicator
+
+        current_injection_overpressure = pp.ad.TimeDependentDenseArray(
+            "current_injection_overpressure", [self.mdg.subdomains()[0]]
+        )
+        hydrostatic_pressure = pp.ad.TimeDependentDenseArray(
+            "hydrostatic_pressure", subdomains
+        )
+        constrained_eq = (
+            self.pressure(subdomains)
+            - current_injection_overpressure
+            - hydrostatic_pressure
+        )
+
+        eq_with_pressure_constraint = (
+            pp.ad.DenseArray(reverse_indicator) * std_eq
+            + pp.ad.DenseArray(indicator) * constrained_eq
+        )
+        eq_with_pressure_constraint.set_name(
+            "mass_balance_equation_with_constrained_pressure"
+        )
+
+        return eq_with_pressure_constraint
     
