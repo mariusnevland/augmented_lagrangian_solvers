@@ -9,7 +9,7 @@ from convergence_metrics import *
 from export_iterations import *
 from contact_mechanics_mixins import *
 
-grid_sizes = [1000 * 0.07, 500 * 0.07, 250 * 0.07]
+grid_sizes = [1000 * 0.07, 500 * 0.07, 250 * 0.07, 125 * 0.07]
 itr_list = []
 
 for size in grid_sizes:
@@ -21,7 +21,7 @@ for size in grid_sizes:
             return mesh_args
         
     class SimpleInjectionInit(Grid,
-                          VerticalHorizontalNetwork,
+                          MoreFocusedFractures,
                           AnisotropicStressBC,
                           ConstantPressureBC,
                           ConstrainedPressureEquaton,
@@ -50,7 +50,7 @@ for size in grid_sizes:
 
     class SimpleInjection(InitialCondition,
                       Grid,
-                      VerticalHorizontalNetwork,
+                      MoreFocusedFractures,
                       PressureConstraintWell,
                       AnisotropicStressBC,
                       ConstantPressureBC,
@@ -58,11 +58,12 @@ for size in grid_sizes:
                       AlternativeTangentialEquation,
                       DimensionalContactTraction,
                       NormalPermeabilityFromSecondary,
+                      # IterationExporting,
                       pp.constitutive_laws.CubicLawPermeability,
                       pp.poromechanics.Poromechanics):
         pass
 
     params = copy.deepcopy(params_injection_2D)
-    itr_solver = run_and_report_single(Model=SimpleInjection, params=params, c_value=1e-2, solver="ClassicalReturnMap")
+    itr_solver = run_and_report_single(Model=SimpleInjection, params=params, c_value=1e-2, solver="Newton")
     itr_list.append(itr_solver)
 print(itr_list)
