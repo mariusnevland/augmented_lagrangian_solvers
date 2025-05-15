@@ -11,7 +11,7 @@ from export_iterations import *
 from contact_mechanics_mixins import *
 from contact_states_counter import *
 
-class SimpleInjectionInit(VerticalHorizontalNetwork,
+class SimpleInjectionInit(MoreFocusedFractures,
                           AnisotropicStressBC,
                           ConstantPressureBC,
                           ConstrainedPressureEquaton,
@@ -19,7 +19,6 @@ class SimpleInjectionInit(VerticalHorizontalNetwork,
                           AlternativeTangentialEquation,
                           ContactMechanicsConstant,
                           DimensionalContactTraction,
-                          # IterationExporting,
                           NormalPermeabilityFromSecondary,
                           pp.constitutive_laws.CubicLawPermeability,
                           pp.poromechanics.Poromechanics):
@@ -46,7 +45,7 @@ class InitialCondition:
 
 
 class SimpleInjection(InitialCondition,
-                      VerticalHorizontalNetwork,
+                      MoreFocusedFractures,
                       PressureConstraintWell,
                       AnisotropicStressBC,
                       ConstantPressureBC,
@@ -54,37 +53,62 @@ class SimpleInjection(InitialCondition,
                       AlternativeTangentialEquation,
                       DimensionalContactTraction,
                       ContactMechanicsConstant2,
-                      NewtonReturnMap,
                       ContactStatesCounter,
-                      # IterationExporting,
                       NormalPermeabilityFromSecondary,
                       pp.constitutive_laws.CubicLawPermeability,
                       pp.poromechanics.Poromechanics):
     pass
 
 
-params = copy.deepcopy(params_injection_2D)
-model = SimpleInjection(params)
-try:
-    pp.run_time_dependent_model(model, params)
-    print("Num open:")
-    print(model.num_open)
-    print("Num stick:")
-    print(model.num_stick)
-    print("Num glide:")
-    print(model.num_glide)
-    plt.plot(np.arange(0, len(model.num_open)), model.num_open)
-    plt.plot(np.arange(0, len(model.num_glide)), model.num_glide)
-    plt.plot(np.arange(0, len(model.num_stick)), model.num_stick)
-    plt.savefig("contact_states_success", dpi=300, bbox_inches="tight")
-except ValueError or RuntimeError:
-    print("Num open:")
-    print(model.num_open)
-    print("Num stick:")
-    print(model.num_stick)
-    print("Num glide:")
-    print(model.num_glide)
-    plt.plot(np.arange(0, len(model.num_open)), model.num_open)
-    plt.plot(np.arange(0, len(model.num_glide)), model.num_glide)
-    plt.plot(np.arange(0, len(model.num_stick)), model.num_stick)
-    plt.savefig("contact_states_fail", dpi=300, bbox_inches="tight")
+class SimpleInjectionNRM(InitialCondition,
+                      MoreFocusedFractures,
+                      PressureConstraintWell,
+                      AnisotropicStressBC,
+                      ConstantPressureBC,
+                      LebesgueConvergenceMetrics,
+                      AlternativeTangentialEquation,
+                      DimensionalContactTraction,
+                      ContactMechanicsConstant2,
+                      CycleCheck,
+                      SafeNewtonReturnMap,
+                      ContactStatesCounter,
+                      NormalPermeabilityFromSecondary,
+                      pp.constitutive_laws.CubicLawPermeability,
+                      pp.poromechanics.Poromechanics):
+    pass
+
+models = [SimpleInjectionNRM]
+for model in models:
+    params = copy.deepcopy(params_plots_2D)
+    params["max_iterations"] = 60
+    model = model(params)
+    try:
+        pp.run_time_dependent_model(model, params)
+        print("Num open:")
+        print(model.num_open)
+        print("Num stick:")
+        print(model.num_stick)
+        print("Num glide:")
+        print(model.num_glide)
+        return_map_switch = 38
+        itr = np.arange(0, len(model.num_open))
+        plt.plot(itr[:return_map_switch+1], model.num_open[:return_map_switch+1], color="orange")
+        plt.plot(itr[:return_map_switch+1], model.num_stick[:return_map_switch+1], color="red")
+        plt.plot(itr[:return_map_switch+1], model.num_glide[:return_map_switch+1], color="blue")
+        plt.plot(itr[return_map_switch:], model.num_open[return_map_switch:], linestyle="--", color="orange")
+        plt.plot(itr[return_map_switch:], model.num_stick[return_map_switch:], linestyle="--", color="red")
+        plt.plot(itr[return_map_switch:], model.num_glide[return_map_switch:], linestyle="--", color="blue")
+    except ValueError or RuntimeError:
+        print("Num open:")
+        print(model.num_open)
+        print("Num stick:")
+        print(model.num_stick)
+        print("Num glide:")
+        print(model.num_glide)
+        plt.plot(model.num_open, color="orange")
+        plt.plot(model.num_stick, color="red")
+        plt.plot(model.num_glide, color="blue")
+plt.legend(["Open", "Stick", "Slip"])
+plt.xlabel("Iteration")
+plt.ylabel("Number of cells in contact state")
+plt.savefig("contact_states_success", dpi=300, bbox_inches="tight")

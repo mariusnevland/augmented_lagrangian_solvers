@@ -67,6 +67,12 @@ class ContactStatesCounter:
         else:
             return states
         
+    def before_nonlinear_loop(self) -> None:
+        super().before_nonlinear_loop()
+        self.num_open.clear()
+        self.num_stick.clear()
+        self.num_glide.clear()
+        
     def after_nonlinear_iteration(self, nonlinear_increment: np.ndarray) -> None:
         super().after_nonlinear_iteration(nonlinear_increment)
         states = self.compute_fracture_states()
