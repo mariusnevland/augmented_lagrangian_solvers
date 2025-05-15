@@ -20,6 +20,8 @@ fluid_values = {"compressibility": 1/2.5 * 1e-9,  # Inverse of bulk modulus
 
 numerical_values = {"characteristic_contact_traction": 1}
 
+reference_values = {"pressure": 2e7}
+
 solid = pp.SolidConstants(**solid_values)
 fluid = pp.FluidComponent(**fluid_values)
 numerical = pp.NumericalConstants(**numerical_values)
@@ -39,6 +41,7 @@ params_initialization = {
     "nl_convergence_tol_res": nl_convergence_tol_res,
     "linear_solver": "scipy_sparse",
     "folder_name": "results/initialization",
+    "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
 }
 
 params_injection_2D = {
@@ -52,6 +55,22 @@ params_injection_2D = {
     "nl_convergence_tol_res": nl_convergence_tol_res,
     "linear_solver": "scipy_sparse",
     "folder_name": "results/injection_2D",
+    "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
+}
+
+
+params_plots_2D = {
+    "max_iterations": 100,
+    "material_constants": material_constants,
+    "time_manager": pp.TimeManager(
+        schedule=[0, 0.1 * pp.DAY], dt_init=0.1 * pp.DAY, constant_dt=True
+    ),
+    "units": units,
+    "nl_convergence_tol": nl_convergence_tol,
+    "nl_convergence_tol_res": nl_convergence_tol_res,
+    "linear_solver": "scipy_sparse",
+    "folder_name": "results/injection_2D",
+    "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
 }
 
 
@@ -73,13 +92,14 @@ params_testing_3D = {
     "max_iterations": 100,
     "material_constants": material_constants,
     "time_manager": pp.TimeManager(
-        schedule=[0, 150 * pp.DAY], dt_init=50 * pp.DAY, constant_dt=True
+        schedule=[0, 0.5 * pp.DAY], dt_init=0.1 * pp.DAY, constant_dt=True
     ),
     "units": units,
     "nl_convergence_tol": nl_convergence_tol,
     "nl_convergence_tol_res": nl_convergence_tol_res,
     "linear_solver": "scipy_sparse",
     "folder_name": "results/testing_3D",
+    "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
 }
 
 
@@ -87,13 +107,14 @@ params_initialize_pressure_3D = {
     "max_iterations": 100,
     "material_constants": material_constants,
     "time_manager": pp.TimeManager(
-        schedule=[0, 250 * pp.DAY], dt_init=50 * pp.DAY, constant_dt=True
+        schedule=[0, 50 * pp.DAY], dt_init=50 * pp.DAY, constant_dt=True
     ),
     "units": units,
     "nl_convergence_tol": nl_convergence_tol,
     "nl_convergence_tol_res": nl_convergence_tol_res,
     "linear_solver": "scipy_sparse",
     "folder_name": "results/init_pressure_3D",
+    "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
 }
 
 
@@ -107,5 +128,5 @@ params_outline = {
     "nl_convergence_tol": nl_convergence_tol,
     "nl_convergence_tol_res": nl_convergence_tol_res,
     "linear_solver": "scipy_sparse",
-    "folder_name": "results/outline",
+    "folder_name": "results/export_injection_cell",
 }
