@@ -138,7 +138,7 @@ class MoreFocusedFractures:
         return self.params.get("grid_type", "simplex")
 
     def meshing_arguments(self) -> dict:
-        mesh_args = {"cell_size": 1000 * 0.07 / self.units.m}
+        mesh_args = {"cell_size": 500 * 0.07 / self.units.m}
         return mesh_args
 
 class VerticalHorizontalNetwork:
@@ -274,6 +274,73 @@ class PressureConstraintWell:
             if sd == well_sd:
  
                 well_loc_ind = self._fracture_center_cell(sd)
+                sd_indicator[i][well_loc_ind] = 1
+ 
+        # Characteristic functions
+        indicator = np.concatenate(sd_indicator)
+        reverse_indicator = 1 - indicator
+ 
+        current_injection_pressure = pp.ad.TimeDependentDenseArray(
+            "current_injection_pressure", [self.mdg.subdomains()[0]]
+        )
+        constrained_eq = self.pressure(subdomains) - current_injection_pressure
+ 
+        eq_with_pressure_constraint = (
+            pp.ad.DenseArray(reverse_indicator) * std_eq
+            + pp.ad.DenseArray(indicator) * constrained_eq
+        )
+        eq_with_pressure_constraint.set_name(
+            "mass_balance_equation_with_constrained_pressure"
+        )
+ 
+        return eq_with_pressure_constraint
+    
+
+
+class PressureConstraintWellGrid:
+
+    def update_time_dependent_ad_arrays(self) -> None:
+        """Set current injection pressure."""
+        super().update_time_dependent_ad_arrays()
+ 
+        # Update injection pressure
+        current_injection_pressure = self.units.convert_units(2e7, "Pa") + self.units.convert_units(0.1*1e7, "Pa")
+        for sd in self.mdg.subdomains(return_data=False):
+            pp.set_solution_values(
+                name="current_injection_pressure",
+                values=np.array([current_injection_pressure]),
+                data=self.mdg.subdomain_data(sd),
+                iterate_index=0,
+            )
+ 
+    def _cell_within_well(self, sd: pp.Grid) -> np.ndarray:
+        # Compute the fracture cell that is closest to the center of the fracture
+        cell_within_well = []
+        for i, center in enumerate(sd.cell_centers[0]):
+            if center > 946 and center < 994:
+                cell_within_well.append(i)
+                print(center)
+        return np.array(cell_within_well)
+ 
+    def mass_balance_equation(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
+        std_eq = super().mass_balance_equation(subdomains)
+ 
+        # Need to embedd in full domain
+        sd_indicator = [np.zeros(sd.num_cells) for sd in subdomains]
+ 
+        # Pick the only subdomain
+        fracture_sds = [sd for sd in subdomains if sd.dim == self.nd - 1]
+ 
+        if len(fracture_sds) == 0:
+            return std_eq
+ 
+        # Pick a single fracture
+        well_sd = fracture_sds[0]
+ 
+        for i, sd in enumerate(subdomains):
+            if sd == well_sd:
+ 
+                well_loc_ind = self._cell_within_well(sd)
                 sd_indicator[i][well_loc_ind] = 1
  
         # Characteristic functions
