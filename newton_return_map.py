@@ -1,5 +1,6 @@
 import numpy as np
 import porepy as pp
+from contact_mechanics_mixins import *
 
 # Add a postprocessing step after every nonlinear iteration that functions
 # as a return map for the contact forces. If the tangential traction is
@@ -44,20 +45,6 @@ class NewtonReturnMap:
             # This will be our updated traction array, based on the results of the
             # return map.
             t_eval_new = np.zeros(self.contact_traction(fracture_domains).size)
-
-            # Find the indices of the global traction array corresponding to the normal and
-            # tangential components. This is equivalent to the column position of all nonzero elements
-            # of the normal and tangential projection matrices, respectively.
-
-            # print(self.tangential_component(fracture_domains).value(self.equation_system))
-
-            # assert False
-            # tang_matrix = self.tangential_component(fracture_domains).value(self.equation_system)
-            # norm_matrix = self.normal_component(fracture_domains).value(self.equation_system)
-            # print(np.nonzero(tang_matrix))
-            # print(np.nonzero(norm_matrix))
-            # tang_indices = np.nonzero(tang_matrix)[1]
-            # norm_indices = np.nonzero(norm_matrix)[1]
 
             # If the simulation is three-dimensional, the tangential component
             # is (cell-wise) two-dimensional and is accordingly put into
@@ -142,14 +129,6 @@ class SafeNewtonReturnMap(NewtonReturnMap):
     """
 
     def _nrm_safety(self) -> bool:
-        return (
-            (self.cycling_window > 1)
-            or (
-                len(self.nonlinear_solver_statistics.residual_norms) > 0
-                and self.nonlinear_solver_statistics.nonlinear_increment_norms[-1] > 1e3
-            )
-            or (
-                len(self.nonlinear_solver_statistics.residual_norms) > 0
-                and self.nonlinear_solver_statistics.residual_norms[-1] > 1e3
-            )
-        )
+        return ((self.return_map_on) 
+                or (self.nonlinear_solver_statistics.num_iteration > 50)
+                or (self.nonlinear_solver_statistics.residual_norms[-1] > 1e3))

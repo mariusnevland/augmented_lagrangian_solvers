@@ -174,6 +174,8 @@ class CycleCheck:
 
         elif len(self.cached_contact_states) > 0:
             # Determine detailed contact state changes
+            # Determine number of cells in each contact state
+            # and the number of changes from state i to j.
             changes = np.zeros((3, 3), dtype=int)
             num_contact_states = np.zeros(3, dtype=int)
             try:
@@ -257,6 +259,8 @@ class CycleCheck:
 
             if cycling:
                 break
+        if cycling_window > 1:
+            self.return_map_on = True
         self.cached_contact_states.append(self.states)
         self.cached_contact_vars.append(vars)
         self.cached_contact_normal_residuals.append(normal_residuals)
@@ -284,6 +288,7 @@ class CycleCheck:
 
     def before_nonlinear_loop(self):
         self.previous_states = self.compute_fracture_states(split_output=True)
+        self.return_map_on = False
         super().before_nonlinear_loop()
 
     def after_nonlinear_iteration(self, solution_vector: np.ndarray) -> None:
