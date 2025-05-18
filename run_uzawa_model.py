@@ -78,7 +78,7 @@ def run_time_dependent_uzawa_model(model, params: dict) -> None:
         converged = False
         max_uzawa_itr = 100  # Maximum number of outer Uzawa iterations
         total_itr = 0
-        max_total_itr = 200  # Maximum number of accumulated Newton iterations
+        max_total_itr = 20000  # Maximum number of accumulated Newton iterations
         while not converged and total_itr <= max_total_itr:     
             # One iteration of the Uzawa loop consists of replacing the complementarity
             # functions with regularized versions, and solving the resulting nonlinear
