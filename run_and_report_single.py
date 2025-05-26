@@ -6,6 +6,7 @@ from newton_return_map_test import *
 from classical_return_map import *
 from run_uzawa_model import *
 from cycle_check import *
+from matplotlib import pyplot as plt
 
 logger = logging.getLogger(__name__)
 # Run a simulation with a given nonlinear solver, and report on the number of
@@ -58,15 +59,6 @@ def run_and_report_single(Model,
                          NewtonReturnMap,
                          Model):
             pass
-
-    elif solver == "SafeNewtonReturnMap":
-
-        class Simulation(ContactMechanicsConstant,
-                         SumTimeSteps,
-                         CycleCheck,
-                         SafeNewtonReturnMap,
-                         Model):
-            pass
         
     else:
         raise NotImplementedError("Invalid nonlinear solver.")
@@ -76,22 +68,22 @@ def run_and_report_single(Model,
         try:
             pp.run_time_dependent_model(model, params)
             itr = model.total_itr
-        except ValueError as e:
-            logger.warning(f"Value error: {e}")
-            itr = 0
-        except RuntimeError as e:
-            logger.warning(f"Runtime error: {e}")
-            itr = 0
+        except:
+            res = model.nonlinear_solver_statistics.residual_norms
+            if res[-1] > 1e5 or np.isnan(np.array(res[-1])):
+                itr = -1
+            else:
+                itr = 0
     if solver == "ClassicalReturnMap":
         try:
             run_time_dependent_uzawa_model(model, params)
             itr = model.total_itr
-        except ValueError as e:
-            logger.warning(f"Value error: {e}")
-            itr = 0
-        except RuntimeError as e:
-            logger.warning(f"Runtime error: {e}")
-            itr = 0
+        except:
+            res = model.nonlinear_solver_statistics.residual_norms
+            if res[-1] > 1e5 or np.isnan(np.array(res[-1])):
+                itr = -1
+            else:
+                itr = 0
     return itr
 
 

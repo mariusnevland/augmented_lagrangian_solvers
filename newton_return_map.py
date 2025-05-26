@@ -17,11 +17,11 @@ class NewtonReturnMap:
     res_before = []
     res_after = []
 
-    def _nrm_safety(self) -> bool:
+    def _nrm_on(self) -> bool:
         return True
 
     def before_nonlinear_iteration(self) -> None:
-        if self.nonlinear_solver_statistics.num_iteration > 0 and self._nrm_safety():
+        if self.nonlinear_solver_statistics.num_iteration > 0 and self._nrm_on():
 
             res_before_return = self.equation_system.assemble(evaluate_jacobian=False)
             self.res_before.append(np.linalg.norm(res_before_return))
@@ -119,16 +119,11 @@ class NewtonReturnMap:
         super().before_nonlinear_iteration()
 
     
-class SafeNewtonReturnMap(NewtonReturnMap):
-    """Preprocessing step for the Newton solver to perform a return map.
-
-    We perform the return map before the nonlinear iteration, since we want
-    the convergence check to be done on the regular Newton update. It is not
-    done before the very first iteration.
+class DelayedNewtonReturnMap(NewtonReturnMap):
+    """Only turn on the return map after 20 iterations of regular Newton.
+    For visualization purposes.
 
     """
 
-    def _nrm_safety(self) -> bool:
-        return ((self.return_map_on) 
-                or (self.nonlinear_solver_statistics.num_iteration > 50)
-                or (self.nonlinear_solver_statistics.residual_norms[-1] > 1e3))
+    def _nrm_on(self) -> bool:
+        return self.nonlinear_solver_statistics.num_iteration > 20
