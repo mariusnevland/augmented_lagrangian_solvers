@@ -11,13 +11,14 @@ from matplotlib import pyplot as plt
 logger = logging.getLogger(__name__)
 # Run a simulation with a given nonlinear solver, and report on the number of
 # nonlinear iterations.
-# If the Newton solver does not converge, it returns 0.
-# If the Uzawa solver does not converge (or diverges to infinity) it returns -1.
+# If the solver diverges to infinity, it returns -1.
+# If the solver does not converge, by exceeeding the maximum number of allowed
+# iterations, it returns 0. 
 
-def run_and_plot_single(Model, 
-                          params: dict,
-                          c_value: float, 
-                          solver: str) -> int:
+def run_and_count_iterations(Model, 
+                             params: dict,
+                             c_value: float, 
+                             solver: str) -> int:
     
     class ContactMechanicsConstant:
 
@@ -64,39 +65,26 @@ def run_and_plot_single(Model,
         raise NotImplementedError("Invalid nonlinear solver.")
 
     model = Simulation(params)
-    if solver in {"Newton", "NewtonReturnMap", "SafeNewtonReturnMap"}:
+    if solver in {"Newton", "NewtonReturnMap"}:
         try:
             pp.run_time_dependent_model(model, params)
-            return_map_switch = 20
+            itr = model.total_itr
+        except:
             res = model.nonlinear_solver_statistics.residual_norms
-            itr = np.arange(0, len(res))
-            plt.semilogy(np.arange(0, len(res)), res, color="blue")
-            # plt.semilogy(itr[:return_map_switch+1], res[:return_map_switch+1], color="blue")
-            # plt.semilogy(itr[return_map_switch:], res[return_map_switch:], linestyle="--", color="blue")
-        except ValueError as e:
-            logger.warning(f"Value error: {e}")
-            itr = 0
-            res = model.nonlinear_solver_statistics.residual_norms
-            plt.semilogy(np.arange(0, len(res)), res, color="red")
-        except RuntimeError as e:
-            logger.warning(f"Runtime error: {e}")
-            itr = 0
-            res = model.nonlinear_solver_statistics.residual_norms
-            plt.semilogy(np.arange(0, len(res)), res)
+            if res[-1] > 1e5 or np.isnan(np.array(res[-1])):
+                itr = -1
+            else:
+                itr = 0
     if solver == "ClassicalReturnMap":
         try:
             run_time_dependent_uzawa_model(model, params)
             itr = model.total_itr
-        except ValueError as e:
-            logger.warning(f"Value error: {e}")
-            itr = 0
+        except:
             res = model.nonlinear_solver_statistics.residual_norms
-            plt.semilogy(np.arange(0, len(res)), res, color="orange")
-        except RuntimeError as e:
-            logger.warning(f"Runtime error: {e}")
-            itr = 0
-            res = model.nonlinear_solver_statistics.residual_norms
-            plt.semilogy(np.arange(0, len(res)), res)
+            if res[-1] > 1e5 or np.isnan(np.array(res[-1])):
+                itr = -1
+            else:
+                itr = 0
     return itr
 
 
