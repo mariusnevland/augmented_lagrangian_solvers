@@ -15,7 +15,7 @@ from matplotlib import pyplot as plt
 def run_and_make_plot(Model, 
                       params: dict,
                       c_value: float, 
-                      solver: str) -> int:
+                      solver: str):
     
     class ContactMechanicsConstant:
 
@@ -100,7 +100,10 @@ def run_and_make_plot(Model,
             res = model.nonlinear_solver_statistics.residual_norms
             if model.params.get("make_fig5a", False):
                 plt.semilogy(np.arange(0, len(res)), res, color="orange")
-    return 1
+            elif model.params.get("make_fig6", False):
+                plt.plot(model.num_open, color="orange")
+                plt.plot(model.num_stick, color="red")
+                plt.plot(model.num_glide, color="blue")
 
 
 # Sum number of nonlinear iterations over several time steps.

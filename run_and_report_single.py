@@ -15,10 +15,10 @@ logger = logging.getLogger(__name__)
 # If the solver does not converge, by exceeeding the maximum number of allowed
 # iterations, it returns 0. 
 
-def run_and_count_iterations(Model, 
-                             params: dict,
-                             c_value: float, 
-                             solver: str) -> int:
+def run_and_report_single(Model, 
+                          params: dict,
+                          c_value: float, 
+                          solver: str) -> int:
     
     class ContactMechanicsConstant:
 
@@ -60,21 +60,47 @@ def run_and_count_iterations(Model,
                          NewtonReturnMap,
                          Model):
             pass
+
+    elif solver == "DelayedNewtonReturnMap":
+
+        class Simulation(ContactMechanicsConstant,
+                         SumTimeSteps,
+                         DelayedNewtonReturnMap,
+                         Model):
+            pass
         
     else:
         raise NotImplementedError("Invalid nonlinear solver.")
 
     model = Simulation(params)
-    if solver in {"Newton", "NewtonReturnMap"}:
+    if solver in {"Newton", "NewtonReturnMap", "DelayedNewtonReturnMap"}:
         try:
             pp.run_time_dependent_model(model, params)
             itr = model.total_itr
+            res = model.nonlinear_solver_statistics.residual_norms
+            if model.params.get("make_fig5a", False):
+                plt.semilogy(np.arange(0, len(res)), res, color="blue")
+            elif model.params.get("make_fig5b", False):
+                return_map_switch = 20
+                itr = np.arange(0, len(res))
+                plt.semilogy(itr[:return_map_switch+1], res[:return_map_switch+1], color="blue")
+                plt.semilogy(itr[return_map_switch:], res[return_map_switch:], linestyle="--", color="blue")
+            elif model.params.get("make_fig6", False):
+                plt.plot(model.num_open, color="orange")
+                plt.plot(model.num_stick, color="red")
+                plt.plot(model.num_glide, color="blue")
         except:
             res = model.nonlinear_solver_statistics.residual_norms
             if res[-1] > 1e5 or np.isnan(np.array(res[-1])):
-                itr = -1
+                itr = 500
             else:
                 itr = 0
+            if model.params.get("make_fig5a", False):
+                plt.semilogy(np.arange(0, len(res)), res, color="red")
+            elif model.params.get("make_fig6", False):
+                plt.plot(model.num_open, color="orange")
+                plt.plot(model.num_stick, color="red")
+                plt.plot(model.num_glide, color="blue")
     if solver == "ClassicalReturnMap":
         try:
             run_time_dependent_uzawa_model(model, params)
@@ -82,9 +108,15 @@ def run_and_count_iterations(Model,
         except:
             res = model.nonlinear_solver_statistics.residual_norms
             if res[-1] > 1e5 or np.isnan(np.array(res[-1])):
-                itr = -1
+                itr = 500
             else:
                 itr = 0
+            if model.params.get("make_fig5a", False):
+                plt.semilogy(np.arange(0, len(res)), res, color="orange")
+            elif model.params.get("make_fig6", False):
+                plt.plot(model.num_open, color="orange")
+                plt.plot(model.num_stick, color="red")
+                plt.plot(model.num_glide, color="blue")
     return itr
 
 
