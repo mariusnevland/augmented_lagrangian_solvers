@@ -138,7 +138,7 @@ class MoreFocusedFractures:
         return self.params.get("grid_type", "simplex")
 
     def meshing_arguments(self) -> dict:
-        mesh_args = {"cell_size": 500 * 0.07 / self.units.m}
+        mesh_args = {"cell_size": 175 * 0.07 / self.units.m}
         return mesh_args
 
 class VerticalHorizontalNetwork:
@@ -231,6 +231,39 @@ class ConstrainedPressureEquaton:
          eq = self.pressure(subdomains) - pp.ad.Scalar(self.units.convert_units(2e7, "Pa"))
          eq.set_name("new mass balance")
          return eq
+     
+
+class SourceInFractureCenter2D:
+
+    def _fracture_center_cell(self, sd: pp.Grid) -> np.ndarray:
+        # Compute the fracture cell that is closest to the center of the fracture
+        mean_coo = np.mean(sd.cell_centers, axis=1).reshape((3, 1))
+        center_cell = sd.closest_cell(mean_coo)
+        return center_cell
+
+    def fluid_source(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
+        """Assign unitary fracture source"""
+        # Retrieve internal sources (jump in mortar fluxes) from the base class
+        internal_sources: pp.ad.Operator = super().fluid_source(subdomains)
+
+        # Retrieve external (integrated) sources from the exact solution.
+        values = []
+
+        for sd in subdomains:
+            if sd == self.mdg.subdomains()[1]:  # Subdomain corresponding to first fracture
+                vals = np.zeros(sd.num_cells)
+                center = self._fracture_center_cell(sd)
+                vals[center] = self.units.convert_units(1e-3, "m^2 * s^-1")
+                values.append(vals)
+            else:
+                values.append(np.zeros(sd.num_cells))
+
+        external_sources = pp.wrap_as_dense_ad_array(np.hstack(values))
+        # Add up both contributions
+        rho = self.fluid.density(subdomains)
+        source = internal_sources + rho * external_sources
+        source.set_name("fluid sources")
+        return source
     
 
 class PressureConstraintWell:
@@ -240,7 +273,8 @@ class PressureConstraintWell:
         super().update_time_dependent_ad_arrays()
  
         # Update injection pressure
-        current_injection_pressure = self.units.convert_units(2e7, "Pa") + self.units.convert_units(1e7, "Pa")
+        injection_overpressure = self.params.get("injection_overpressure", 0)
+        current_injection_pressure = self.units.convert_units(2e7, "Pa") + self.units.convert_units(injection_overpressure, "Pa")
         for sd in self.mdg.subdomains(return_data=False):
             pp.set_solution_values(
                 name="current_injection_pressure",
@@ -304,7 +338,8 @@ class PressureConstraintWellGrid:
         super().update_time_dependent_ad_arrays()
  
         # Update injection pressure
-        current_injection_pressure = self.units.convert_units(2e7, "Pa") + self.units.convert_units(0.1*1e7, "Pa")
+        injection_overpressure = self.params.get("injection_overpressure", 0)
+        current_injection_pressure = self.units.convert_units(2e7, "Pa") + self.units.convert_units(injection_overpressure, "Pa")
         for sd in self.mdg.subdomains(return_data=False):
             pp.set_solution_values(
                 name="current_injection_pressure",
@@ -317,7 +352,7 @@ class PressureConstraintWellGrid:
         # Compute the fracture cell that is closest to the center of the fracture
         cell_within_well = []
         for i, center in enumerate(sd.cell_centers[0]):
-            if center > 946 and center < 994:
+            if center > 993 and center < 1003:  # Coarsest grid is now 33790 cells
                 cell_within_well.append(i)
                 print(center)
         return np.array(cell_within_well)
