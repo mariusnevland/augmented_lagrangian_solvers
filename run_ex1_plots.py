@@ -2,7 +2,7 @@ import numpy as np
 import porepy as pp
 import copy
 from model_setup_example_1 import *
-from run_and_count_iterations import *
+from run_and_report_single import *
 from parameters import *
 from cubic_normal_permeability import *
 from convergence_metrics import *
@@ -67,7 +67,11 @@ for solver in solvers:
     params = copy.deepcopy(params_plots_2D)
     params["max_iterations"] = 50
     params["make_fig5a"] = True
-    itr_solver = run_and_make_plot(Model=SimpleInjection, params=params, c_value=c_value, solver=solver)
+    params["injection_overpressure"] = 0.1 * 1e7
+    _ = run_and_report_single(Model=SimpleInjection, params=params, c_value=c_value, solver=solver)
+plt.legend(["Newton", "NRM", "CRM"], fontsize=14)
+plt.xlabel("Iteration", fontsize=14)
+plt.ylabel("Residual norm", fontsize=14)
 plt.savefig("fig5a.png", dpi=300, bbox_inches="tight")
 plt.close()
 
@@ -75,21 +79,37 @@ plt.close()
 solver = "DelayedNewtonReturnMap"
 params = copy.deepcopy(params_plots_2D)
 params["make_fig5b"] = True
-itr_solver = run_and_make_plot(Model=SimpleInjection, params=params, c_value=c_value, solver=solver)
+params["injection_overpressure"] = 0.1 * 1e7
+_ = run_and_report_single(Model=SimpleInjection, params=params, c_value=c_value, solver=solver)
+plt.legend(["Return map on", "Return map off"], fontsize=14)
+plt.xlabel("Iteration", fontsize=14)
+plt.ylabel("Residual norm", fontsize=14)
 plt.savefig("fig5b.png", dpi=300, bbox_inches="tight")
 plt.close()
 
 # Figure 6
 ModelWithContactCounter = add_mixin(ContactStatesCounter, SimpleInjection)
-solvers = ["Newton", "NewtonReturnMap"]
+solvers = ["Newton", "NewtonReturnMap", "ClassicalReturnMap"]
 for solver in solvers:
     params = copy.deepcopy(params_plots_2D)
     params["make_fig6"] = True
-    params["max_iterations"] = 50
-    itr_solver = run_and_make_plot(Model=ModelWithContactCounter, params=params, c_value=c_value, solver=solver)
+    params["max_iterations"] = 30
+    params["injection_overpressure"] = 0.1 * 1e7
+    _ = run_and_report_single(Model=ModelWithContactCounter, params=params, c_value=c_value, solver=solver)
+    plt.xlabel("Iteration", fontsize=14)
+    plt.ylabel("Number of cells in contact state", fontsize=14)
     if solver == "Newton":
+        plt.legend(["Open", "Stick", "Slip"], fontsize=14)
+        plt.title("Newton", fontsize=14)
         plt.savefig("fig6a.png", dpi=300, bbox_inches="tight")
         plt.close()
-    else:
+    elif solver == "NewtonReturnMap":
+        plt.legend(["Open", "Stick", "Slip"], fontsize=14)
+        plt.title("NRM", fontsize=14)
         plt.savefig("fig6b.png", dpi=300, bbox_inches="tight")
+        plt.close()
+    else:
+        plt.legend(["Regularized open", "Regularized stick", "Regularized slip"], fontsize=14)
+        plt.title("CRM", fontsize=14)
+        plt.savefig("fig6c.png", dpi=300, bbox_inches="tight")
         plt.close()
