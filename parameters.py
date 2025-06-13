@@ -48,7 +48,7 @@ params_injection_2D = {
     "max_iterations": 100,
     "material_constants": material_constants,
     "time_manager": pp.TimeManager(
-        schedule=[0, 0.5 * pp.DAY], dt_init=0.1 * pp.DAY, constant_dt=True
+        schedule=[0, 1 * pp.DAY], dt_init=0.1 * pp.DAY, constant_dt=True
     ),
     "units": units,
     "nl_convergence_tol": nl_convergence_tol,
@@ -92,7 +92,7 @@ params_testing_3D = {
     "max_iterations": 100,
     "material_constants": material_constants,
     "time_manager": pp.TimeManager(
-        schedule=[0, 0.5 * pp.DAY], dt_init=0.1 * pp.DAY, constant_dt=True
+        schedule=[0, 0.1 * pp.DAY], dt_init=0.1 * pp.DAY, constant_dt=True
     ),
     "units": units,
     "nl_convergence_tol": nl_convergence_tol,
@@ -119,6 +119,20 @@ params_initialize_pressure_3D = {
 
 
 params_outline = {
+    "max_iterations": 100,
+    "material_constants": material_constants,
+    "time_manager": pp.TimeManager(
+        schedule=[0, 1 * pp.HOUR], dt_init=1 * pp.HOUR, constant_dt=True
+    ),
+    "units": pp.Units(kg=1e9, m=1),
+    "nl_convergence_tol": nl_convergence_tol,
+    "nl_convergence_tol_res": nl_convergence_tol_res,
+    "linear_solver": "scipy_sparse",
+    "folder_name": "results/outline",
+}
+
+
+params_export_injection_cell = {
     "max_iterations": 100,
     "material_constants": material_constants,
     "time_manager": pp.TimeManager(
