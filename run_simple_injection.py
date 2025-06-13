@@ -1,13 +1,16 @@
 import numpy as np
 import porepy as pp
 import copy
+from heatmap import *
 from model_setup_example_1 import *
 from run_and_report_single import *
 from parameters import *
 from cubic_normal_permeability import *
 from convergence_metrics import *
 from export_iterations import *
+from run_and_make_plot import *
 from contact_mechanics_mixins import *
+from contact_states_counter import *
 
 class SimpleInjectionInit(MoreFocusedFractures,
                           AnisotropicStressBC,
@@ -17,7 +20,6 @@ class SimpleInjectionInit(MoreFocusedFractures,
                           AlternativeTangentialEquation,
                           ContactMechanicsConstant,
                           DimensionalContactTraction,
-                          # IterationExporting,
                           NormalPermeabilityFromSecondary,
                           pp.constitutive_laws.CubicLawPermeability,
                           pp.poromechanics.Poromechanics):
@@ -57,14 +59,25 @@ class SimpleInjection(InitialCondition,
                       pp.poromechanics.Poromechanics):
     pass
 
-c_values = [1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2]
-solvers = ["NewtonReturnMap"]
+c_values = [1e-4]
+solvers = ["ClassicalReturnMap"]
+injection_pressures = [1.0 * 1e7]
 
 itr_list = []
-for solver in solvers:
-    for c in c_values:
-        params = copy.deepcopy(params_injection_2D)
-        itr_solver = run_and_report_single(Model=SimpleInjection, params=params, c_value=c, solver=solver)
-        itr_list.append(itr_solver)
-itr_list = np.array(itr_list).reshape((len(solvers),len(c_values)))
-print(itr_list)
+fig_index = ["b"]
+for (pressure, ind) in zip(injection_pressures, fig_index):
+    for solver in solvers:
+        for c in c_values:
+            params = copy.deepcopy(params_plots_2D)
+            params["max_iterations"] = 100
+            params["injection_overpressure"] = pressure
+            itr_solver = run_and_report_single(Model=SimpleInjection, params=params, c_value=c, solver=solver)
+            itr_list.append(itr_solver)
+            print(itr_solver)
+    itr_list = np.array(itr_list).reshape((len(solvers),len(c_values)))
+    print(itr_list)
+    # c_vals = ["1e-3", "1e-2", "1e-1", "1e0", "1e1", "1e2", "1e3"]
+    # solvers_ticks = ["Newton", "NRM", "CRM"]
+    # heatmap(data=itr_list, vmin=1, vmax=150, xticks=c_vals, yticks=solvers_ticks,
+    #         xlabel="c-parameter", file_name=f"fig4{ind}")
+    itr_list = []

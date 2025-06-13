@@ -89,6 +89,8 @@ def run_and_report_single(Model,
                 plt.plot(model.num_open, color="orange")
                 plt.plot(model.num_stick, color="red")
                 plt.plot(model.num_glide, color="blue")
+            elif model.params.get("make_fig9b", False) and c_value == 1e2 and model.params.get("injection_overpressure", 0) == 1e7:
+                plt.semilogy(np.arange(0, len(res)), res, color="blue")
         except:
             res = model.nonlinear_solver_statistics.residual_norms
             if res[-1] > 1e5 or np.isnan(np.array(res[-1])):
@@ -101,6 +103,8 @@ def run_and_report_single(Model,
                 plt.plot(model.num_open, color="orange")
                 plt.plot(model.num_stick, color="red")
                 plt.plot(model.num_glide, color="blue")
+            elif model.params.get("make_fig9b", False) and c_value == 1e2 and model.params.get("injection_overpressure", 0) == 1e7:
+                plt.semilogy(np.arange(0, len(res)), res, color="red")
     if solver == "ClassicalReturnMap":
         try:
             run_time_dependent_uzawa_model(model, params)
