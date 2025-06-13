@@ -14,7 +14,7 @@ class EllipticFractureNetwork:
 
     def set_fractures(self) -> None:
         f_1 = pp.create_elliptic_fracture(
-                np.array([800, 800, 1200]),
+                np.array([800, 800, 900]),
                 600,
                 300,
                 0.5,
@@ -22,7 +22,7 @@ class EllipticFractureNetwork:
                 np.pi / 4,
             )
         f_2 = pp.create_elliptic_fracture(
-                np.array([800, 800, 1000]),
+                np.array([800, 800, 700]),
                 600,
                 300,
                 -0.5 ,
@@ -38,7 +38,7 @@ class EllipticFractureNetwork:
                 np.pi / 4,
             )
         f_4 = pp.create_elliptic_fracture(
-                np.array([1500, 1200, 500]),
+                np.array([1100, 1000, 500]),
                 400,
                 500,
                 0.2 ,
@@ -53,7 +53,93 @@ class EllipticFractureNetwork:
                 0,
                 np.pi / 3,
             )
-        self._fractures = [f_1, f_2, f_3, f_4, f_5]
+        # self._fractures = [f_1, f_2, f_3, f_4, f_5]
+        self._fractures = [f_1, f_2, f_4]
+
+    def grid_type(self) -> Literal["simplex", "cartesian", "tensor_grid"]:
+        return self.params.get("grid_type", "simplex")
+
+    def meshing_arguments(self) -> dict:
+        mesh_args = {"cell_size": 700 * 0.3 / self.units.m,
+                     "cell_size_fracture": 300 * 0.3 / self.units.m}
+        return mesh_args
+
+
+class MoreEllipticFractures:
+
+    def set_domain(self) -> None:
+        self._domain = \
+            pp.Domain(bounding_box=
+                      {'xmin': 0 / self.units.m, 'xmax': 2000 / self.units.m,
+                       'ymin': 0 / self.units.m, 'ymax': 2000 / self.units.m,
+                       'zmin': 0 / self.units.m, 'zmax': 2000 / self.units.m})
+
+    def set_fractures(self) -> None:
+        f_1 = pp.create_elliptic_fracture(
+                np.array([800, 800, 900]),
+                600,
+                300,
+                0.5,
+                np.pi / 4,
+                np.pi / 4,
+            )
+        f_2 = pp.create_elliptic_fracture(
+                np.array([800, 800, 700]),
+                600,
+                300,
+                -0.5 ,
+                -np.pi / 4,
+                -np.pi / 4,
+            )
+        f_3 = pp.create_elliptic_fracture(
+                np.array([400, 1300, 700]),
+                500,
+                300,
+                0.5 ,
+                -np.pi / 3,
+                np.pi / 4,
+            )
+        f_4 = pp.create_elliptic_fracture(
+                np.array([1100, 1000, 500]),
+                400,
+                500,
+                0.2 ,
+                0,
+                np.pi / 2,
+            )
+        f_5 = pp.create_elliptic_fracture(
+                np.array([1400, 1100, 600]),
+                300,
+                400,
+                -np.pi / 2 ,
+                0,
+                np.pi / 3,
+            )
+        f_6 = pp.create_elliptic_fracture(
+                np.array([1100, 400, 600]),
+                300,
+                400,
+                -np.pi / 2 ,
+                0,
+                np.pi / 3,
+            )
+        f_7 = pp.create_elliptic_fracture(
+                np.array([1100, 1200, 1400]),
+                300,
+                400,
+                -np.pi / 3 ,
+                0,
+                np.pi / 4,
+            )
+        f_8 = pp.create_elliptic_fracture(
+                np.array([1100, 1100, 1600]),
+                300,
+                400,
+                -np.pi / 2 ,
+                0,
+                np.pi / 3,
+            )
+        self._fractures = [f_1, f_2, f_3, f_4, f_5, f_6, f_7]
 
     def grid_type(self) -> Literal["simplex", "cartesian", "tensor_grid"]:
         return self.params.get("grid_type", "simplex")
@@ -292,7 +378,7 @@ class PressureConstraintWell3D:
         super().update_time_dependent_ad_arrays()
 
         # Update injection pressure
-        current_injection_overpressure = 1e7
+        current_injection_overpressure = self.params.get("injection_overpressure", 0)
         for sd in self.mdg.subdomains(return_data=False):
             pp.set_solution_values(
                 name="current_injection_overpressure",
