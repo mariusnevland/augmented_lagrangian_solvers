@@ -26,7 +26,15 @@ class ContactStatesCounter:
         u_t_increment: pp.ad.Operator = pp.ad.time_increment(u_t)
         c_num_as_scalar = self.contact_mechanics_numerical_constant(subdomains)
         scalar_to_tangential = pp.ad.sum_projection_list(tangential_basis)
-        tangential_sum = t_t + (scalar_to_tangential @ c_num_as_scalar) * u_t_increment
+        # The fracture states are defined differently for ClassicalReturnMap, as the
+        # complementarity functions are regularized in that case.
+        if hasattr(self, "t_t_prev"):  # ClassicalReturnMap is used
+            t_t_prev_ad = pp.ad.DenseArray(self.t_t_prev)
+            tangential_sum = (
+                t_t_prev_ad + (scalar_to_tangential @ c_num_as_scalar) * u_t_increment
+            )
+        else:   # Newton or NewtonReturnMap is used
+            tangential_sum = t_t + (scalar_to_tangential @ c_num_as_scalar) * u_t_increment
         norm_tangential_sum = f_norm(tangential_sum)
         b = (
             Scalar(-1.0)
