@@ -59,9 +59,9 @@ class SimpleInjection(InitialCondition,
                       pp.poromechanics.Poromechanics):
     pass
 
-c_values = [1e-4, 1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3]
-solvers = ["ClassicalReturnMap"]
-injection_pressures = [1.0 * 1e7]
+c_values = [1e-4, 1e-3, 1e-2, 1e-1, 1e0]
+solvers = ["NewtonReturnMap"]
+injection_pressures = [0.1 * 1e7]
 
 itr_list = []
 fig_index = ["b", "c"]
