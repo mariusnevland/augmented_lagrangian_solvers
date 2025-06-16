@@ -33,7 +33,6 @@ def get_initial_condition():
     return vals
 
 init_cond = get_initial_condition()
-print(np.linalg.norm(init_cond))
 
 class InitialCondition:
     def initial_condition(self) -> None:
