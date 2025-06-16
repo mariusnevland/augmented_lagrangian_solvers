@@ -64,7 +64,7 @@ class ThreeDimInjection(InitialCondition,
     pass
 
 # c_values = [1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3]
-c_values = [1e-3]
+c_values = [1e-1]
 solvers = ["Newton"]
 injection_pressures = [0.5*1e7]
 # injection_pressures = [0.5 * 1e7, 1e7]

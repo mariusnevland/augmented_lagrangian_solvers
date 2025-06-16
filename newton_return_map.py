@@ -25,8 +25,8 @@ class NewtonReturnMap:
 
             res_before_return = self.equation_system.assemble(evaluate_jacobian=False)
             self.res_before.append(np.linalg.norm(res_before_return))
-            print("Before return:")
-            print(np.linalg.norm(res_before_return))
+            # print("Before return:")
+            # print(np.linalg.norm(res_before_return))
             # Evaluate tractions and the friction bound.
             fracture_domains = self.mdg.subdomains(dim=self.nd - 1)
 
@@ -73,9 +73,6 @@ class NewtonReturnMap:
                     # project back to the boundary.
                     t_t_new[i] = trust_region * bound * t_t / np.linalg.norm(t_t)
 
-            # Put normal and tangential tractions in the right positions of the global
-            # traction array.
-
             # Projection matrix (represented as an ArraySlicer) from the full traction
             # to the normal direction.
             normal_restriction = normal_basis._slicer
@@ -113,14 +110,14 @@ class NewtonReturnMap:
 
             res_after_return = self.equation_system.assemble(evaluate_jacobian=False)
             self.res_after.append(np.linalg.norm(res_after_return))
-            print("After return:")
-            print(np.linalg.norm(res_after_return))
+            # print("After return:")
+            # print(np.linalg.norm(res_after_return))
 
         super().before_nonlinear_iteration()
 
     
 class DelayedNewtonReturnMap(NewtonReturnMap):
-    """Only turn on the return map after 20 iterations of regular Newton.
+    """Turn on the return map only after 20 iterations of regular Newton.
     For visualization purposes.
 
     """

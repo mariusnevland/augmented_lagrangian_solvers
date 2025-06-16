@@ -25,7 +25,7 @@ class ContactMechanicsConstant2:
     def contact_mechanics_numerical_constant(
         self, subdomains: list[pp.Grid]
     ) -> pp.ad.Scalar:
-        val = 1e-2
+        val = 1e2
         return pp.ad.Scalar(val, name="Contact_mechanics_numerical_constant")
 
 class AlternativeTangentialEquation:

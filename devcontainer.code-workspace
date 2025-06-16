@@ -7,5 +7,7 @@
 			"path": "../../workdir/porepy"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "porepy"
+	}
 }

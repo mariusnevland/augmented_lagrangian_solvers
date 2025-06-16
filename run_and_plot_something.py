@@ -70,7 +70,7 @@ class SimpleInjectionNRM(InitialCondition,
                       DimensionalContactTraction,
                       ContactMechanicsConstant2,
                       CycleCheck,
-                      SafeNewtonReturnMap,
+                      DelayedNewtonReturnMap,
                       ContactStatesCounter,
                       NormalPermeabilityFromSecondary,
                       pp.constitutive_laws.CubicLawPermeability,
@@ -80,7 +80,7 @@ class SimpleInjectionNRM(InitialCondition,
 models = [SimpleInjectionNRM]
 for model in models:
     params = copy.deepcopy(params_plots_2D)
-    params["max_iterations"] = 60
+    params["max_iterations"] = 50
     model = model(params)
     try:
         pp.run_time_dependent_model(model, params)
@@ -90,7 +90,7 @@ for model in models:
         print(model.num_stick)
         print("Num glide:")
         print(model.num_glide)
-        return_map_switch = 38
+        return_map_switch = 20
         itr = np.arange(0, len(model.num_open))
         plt.plot(itr[:return_map_switch+1], model.num_open[:return_map_switch+1], color="orange")
         plt.plot(itr[:return_map_switch+1], model.num_stick[:return_map_switch+1], color="red")

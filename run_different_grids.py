@@ -12,8 +12,8 @@ from contact_mechanics_mixins import *
 from heatmap import *
 
 # grid_sizes = [500 * 0.07, 300 * 0.07, 175 * 0.07, 125 * 0.07]
-grid_sizes = [125 * 0.07]
-injection_pressures = [0.1 * 1e7]
+grid_sizes = [70 * 0.07]
+injection_pressures = [1.0 * 1e7]
 solvers = ["NewtonReturnMap"]
 itr_list = []
 
@@ -71,7 +71,7 @@ for size in grid_sizes:
         for solver in solvers:
             params = copy.deepcopy(params_injection_2D)
             params["injection_overpressure"] = pressure
-            itr_solver = run_and_report_single(Model=SimpleInjection, params=params, c_value=1e-1, solver=solver)
+            itr_solver = run_and_report_single(Model=SimpleInjection, params=params, c_value=1e-2, solver=solver)
             itr_list.append(itr_solver)
             print(itr_solver)
 # itr_list = np.array(itr_list).reshape((4, 4)).T
