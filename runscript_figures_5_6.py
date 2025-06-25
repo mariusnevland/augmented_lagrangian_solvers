@@ -1,7 +1,7 @@
 import numpy as np
 import porepy as pp
 import copy
-from model_setup_example_1 import *
+from model_setup_two_dim import *
 from run_and_report_single import *
 from parameters import *
 from cubic_normal_permeability import *
@@ -62,14 +62,14 @@ class SimpleInjection(InitialCondition,
 
 # Figure 5a
 c_value = 1e2
-solvers = ["Newton", "NewtonReturnMap", "ClassicalReturnMap"]
+solvers = ["Newton", "ClassicalReturnMap", "NewtonReturnMap"]
 for solver in solvers:
-    params = copy.deepcopy(params_plots_2D)
+    params = copy.deepcopy(params_injection_2D)
     params["max_iterations"] = 50
     params["make_fig5a"] = True
     params["injection_overpressure"] = 0.1 * 1e7
     _ = run_and_report_single(Model=SimpleInjection, params=params, c_value=c_value, solver=solver)
-plt.legend(["Newton", "NRM", "CRM"], fontsize=14)
+plt.legend(["GNM", "RM", "GNM-RM"], fontsize=14)
 plt.xlabel("Iteration", fontsize=14)
 plt.ylabel("Residual norm", fontsize=14)
 plt.savefig("fig5a.png", dpi=300, bbox_inches="tight")
@@ -77,7 +77,7 @@ plt.close()
 
 # Figure 5b
 solver = "DelayedNewtonReturnMap"
-params = copy.deepcopy(params_plots_2D)
+params = copy.deepcopy(params_injection_2D)
 params["make_fig5b"] = True
 params["injection_overpressure"] = 0.1 * 1e7
 _ = run_and_report_single(Model=SimpleInjection, params=params, c_value=c_value, solver=solver)
@@ -91,7 +91,7 @@ plt.close()
 ModelWithContactCounter = add_mixin(ContactStatesCounter, SimpleInjection)
 solvers = ["Newton", "NewtonReturnMap", "ClassicalReturnMap"]
 for solver in solvers:
-    params = copy.deepcopy(params_plots_2D)
+    params = copy.deepcopy(params_injection_2D)
     params["make_fig6"] = True
     params["max_iterations"] = 30
     params["injection_overpressure"] = 0.1 * 1e7
@@ -100,16 +100,16 @@ for solver in solvers:
     plt.ylabel("Number of cells in contact state", fontsize=14)
     if solver == "Newton":
         plt.legend(["Open", "Stick", "Slip"], fontsize=14)
-        plt.title("Newton", fontsize=14)
+        plt.title("GNM", fontsize=14)
         plt.savefig("fig6a.png", dpi=300, bbox_inches="tight")
         plt.close()
     elif solver == "NewtonReturnMap":
         plt.legend(["Open", "Stick", "Slip"], fontsize=14)
-        plt.title("NRM", fontsize=14)
+        plt.title("GNM-RM", fontsize=14)
         plt.savefig("fig6b.png", dpi=300, bbox_inches="tight")
         plt.close()
     else:
         plt.legend(["Regularized open", "Regularized stick", "Regularized slip"], fontsize=14)
-        plt.title("CRM", fontsize=14)
+        plt.title("RM", fontsize=14)
         plt.savefig("fig6c.png", dpi=300, bbox_inches="tight")
         plt.close()
