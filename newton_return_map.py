@@ -2,7 +2,7 @@ import numpy as np
 import porepy as pp
 from contact_mechanics_mixins import *
 
-# Add a postprocessing step after every nonlinear iteration that functions
+# Add a postprocessing step after every Newton iteration that functions
 # as a return map for the contact forces. If the tangential traction is
 # larger in magnitude than the friction bound (whose value depends on
 # the current guess of the normal traction), it is projected back to the
@@ -25,8 +25,6 @@ class NewtonReturnMap:
 
             res_before_return = self.equation_system.assemble(evaluate_jacobian=False)
             self.res_before.append(np.linalg.norm(res_before_return))
-            # print("Before return:")
-            # print(np.linalg.norm(res_before_return))
             # Evaluate tractions and the friction bound.
             fracture_domains = self.mdg.subdomains(dim=self.nd - 1)
 
@@ -110,8 +108,6 @@ class NewtonReturnMap:
 
             res_after_return = self.equation_system.assemble(evaluate_jacobian=False)
             self.res_after.append(np.linalg.norm(res_after_return))
-            # print("After return:")
-            # print(np.linalg.norm(res_after_return))
 
         super().before_nonlinear_iteration()
 
