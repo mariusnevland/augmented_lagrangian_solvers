@@ -11,9 +11,10 @@ from matplotlib import pyplot as plt
 logger = logging.getLogger(__name__)
 # Run a simulation with a given nonlinear solver, and report on the number of
 # nonlinear iterations.
-# If the solver diverges to infinity, it returns -1.
-# If the solver does not converge, by exceeeding the maximum number of allowed
-# iterations, it returns 0. 
+# If the solver diverges to infinity, it returns 500.
+# If the solver does not converge, by exceeding the maximum number of allowed
+# Newton iterations, it returns 0.
+# If the return map solver uses more than 150 outer loop iterations, it returns -1.
 
 def run_and_report_single(Model, 
                           params: dict,
@@ -113,6 +114,8 @@ def run_and_report_single(Model,
             res = model.nonlinear_solver_statistics.residual_norms
             if res[-1] > 1e5 or np.isnan(np.array(res[-1])):
                 itr = 500
+            elif model.uzawa_itr > 150:
+                itr = -1
             else:
                 itr = 0
             if model.params.get("make_fig5a", False):
