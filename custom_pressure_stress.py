@@ -1,35 +1,6 @@
 import porepy as pp
-from porepy.models.fluid_property_library import FluidDensityFromPressure
 from porepy.models.constitutive_laws import PressureStress
-Scalar = pp.ad.Scalar
 from typing import cast
-ExtendedDomainFunctionType = pp.ExtendedDomainFunctionType
-
-class CustomFluidDensity(FluidDensityFromPressure):
-      
-    def pressure_exponential(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
-        exp = pp.ad.Function(pp.ad.exp, "density_exponential")
-
-        # Reference variables are defined in a variables class which is assumed to be
-        # available by mixin.
-        dp = self.perturbation_from_reference_new("pressure", subdomains)
-
-        # Wrap compressibility from fluid class as matrix (left multiplication with dp).
-        c = self.fluid_compressibility(subdomains)
-        return exp(c * dp)
-
-
-    def perturbation_from_reference_new(self, name: str, grids: list[pp.Grid]):
-        quantity = getattr(self, name)
-        # This will throw an error if the attribute is not callable
-        quantity_op = cast(pp.ad.Operator, quantity(grids))
-        # the reference values are a data class instance storing only numbers
-        quantity_ref = cast(pp.number, 0.02)
-        # The casting reflects the expected outcome, and is used to help linters find
-        # the set_name method
-        quantity_perturbed = quantity_op - pp.ad.Scalar(quantity_ref)
-        quantity_perturbed.set_name(f"{name}_perturbation")
-        return quantity_perturbed
 
 
 class CustomPressureStress(PressureStress):
