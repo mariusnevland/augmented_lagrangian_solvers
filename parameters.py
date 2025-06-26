@@ -14,6 +14,10 @@ solid_values = {"biot_coefficient": 0.8,
                 "fracture_gap": 0
                 }
 
+solid_values_smaller_dilation = {**solid_values, "dilation_angle": np.radians(3)}
+
+solid_values_larger_dilation = {**solid_values, "dilation_angle": np.radians(7)}
+
 fluid_values = {"compressibility": 1/2.5 * 1e-9,  # Inverse of bulk modulus
                 "density": 1e3,
                 "viscosity": 1e-3}
@@ -25,10 +29,14 @@ reference_values = {"pressure": 2e7}
 solid = pp.SolidConstants(**solid_values)
 fluid = pp.FluidComponent(**fluid_values)
 numerical = pp.NumericalConstants(**numerical_values)
+solid_smaller_dilation = pp.SolidConstants(**solid_values_smaller_dilation)
+solid_larger_dilation = pp.SolidConstants(**solid_values_larger_dilation)
 nl_convergence_tol = 1e-8
 nl_convergence_tol_res = 1e-8
 units = pp.Units(kg=1e9, m=1)
 material_constants = {"solid": solid, "fluid": fluid, "numerical": numerical}
+material_constants_smaller_dilation = {**material_constants, "solid": solid_smaller_dilation}
+material_constants_larger_dilation = {**material_constants, "solid": solid_larger_dilation}
 
 params_initialization = {
     "max_iterations": 100,
@@ -44,22 +52,10 @@ params_initialization = {
     "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
 }
 
+params_initialization_smaller_dilation = {**params_initialization, "material_constants": material_constants_smaller_dilation}
+params_initialization_larger_dilation = {**params_initialization, "material_constants": material_constants_larger_dilation}
+
 params_injection_2D = {
-    "max_iterations": 100,
-    "material_constants": material_constants,
-    "time_manager": pp.TimeManager(
-        schedule=[0, 1 * pp.DAY], dt_init=0.1 * pp.DAY, constant_dt=True
-    ),
-    "units": units,
-    "nl_convergence_tol": nl_convergence_tol,
-    "nl_convergence_tol_res": nl_convergence_tol_res,
-    "linear_solver": "scipy_sparse",
-    "folder_name": "results/injection_2D",
-    "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
-}
-
-
-params_plots_2D = {
     "max_iterations": 100,
     "material_constants": material_constants,
     "time_manager": pp.TimeManager(
@@ -74,17 +70,18 @@ params_plots_2D = {
 }
 
 
-params_pressure_gradient_2D = {
+params_plots_2D = {
     "max_iterations": 100,
     "material_constants": material_constants,
     "time_manager": pp.TimeManager(
-        schedule=[0, 50 * pp.DAY], dt_init=10 * pp.DAY, constant_dt=True
+        schedule=[0, 1 * pp.DAY], dt_init=0.1 * pp.DAY, constant_dt=True
     ),
     "units": units,
     "nl_convergence_tol": nl_convergence_tol,
     "nl_convergence_tol_res": nl_convergence_tol_res,
     "linear_solver": "scipy_sparse",
     "folder_name": "results/injection_2D",
+    "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
 }
 
 
