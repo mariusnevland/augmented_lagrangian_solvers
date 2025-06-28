@@ -5,63 +5,6 @@ from typing import Union
 logger = logging.getLogger(__name__)
 
 
-def run_stationary_uzawa_model(model, params: dict) -> None:
-    """Run a stationary model using an Uzawa algorithm. Must be combined with
-    a mixin defining the Uzawa equations and solution strategy"""
-
-    # Assign parameters, variables and discretizations. Discretize time-indepedent terms
-    if params.get("prepare_simulation", True):
-        model.prepare_simulation()
-
-    # Assign a solver
-    solver = _choose_solver(model, params)
-
-    # Uzawa loop
-    uzawa_iteration_counter = 0
-    converged = False
-    max_uzawa_itr = 10000  # Maximum number of outer Uzawa iterations
-    while not converged and uzawa_iteration_counter <= max_uzawa_itr:     
-        # One iteration of the Uzawa loop consists of replacing the complementarity
-        # functions with regularized versions, and solving the resulting nonlinear
-        # system.
-        # The regularizations depend on the solution at the previous Uzawa iteration.
-        val_prev = model.equation_system.get_variable_values(iterate_index=0)
-        solver.solve(model)  # Solve regularized nonlinear system.
-        val_current = model.equation_system.get_variable_values(iterate_index=0)
-
-        # Assemble residual of the original, non-regularized contact equations,
-        # to be used in the convergence check.
-        norm_eqn = \
-            pp.momentum_balance.MomentumBalance.normal_fracture_deformation_equation\
-                (model, model.mdg.subdomains(dim=model.nd-1))
-        tang_eqn = \
-            pp.momentum_balance.MomentumBalance.tangential_fracture_deformation_equation\
-                (model, model.mdg.subdomains(dim=model.nd-1))
-        res_tang = tang_eqn.value(model.equation_system,state=val_current)
-        res_norm = norm_eqn.value(model.equation_system,state=val_current)
-        res_contact = np.concatenate((res_norm, res_tang))
-        residual_contact = np.linalg.norm(res_contact)
-        print(residual_contact)
-
-        # Convergence check
-        uzawa_error = float(np.linalg.norm(val_current - val_prev))
-        tol_uzawa_increment = 1e-8
-        tol_residual_contact = 1e-8
-        if uzawa_error / np.sqrt(val_current.size) < tol_uzawa_increment \
-                and residual_contact / np.sqrt(res_contact.size) < tol_residual_contact:
-            converged = True
-        uzawa_iteration_counter += 1
-
-    if converged:
-        model.after_uzawa_convergence(uzawa_iteration_counter)
-    else:
-        model.after_uzawa_failure()
-    print("Uzawa iteration counter:", uzawa_iteration_counter)
-    print("Total iteration counter:", model.total_itr)
-
-    model.after_simulation()
-
-
 def run_time_dependent_uzawa_model(model, params: dict) -> None:
     """Run a time-dependent model using an Uzawa algorithm. Must be combined
     with a mixin defining the Uzawa equations and solution strategy."""
@@ -74,12 +17,10 @@ def run_time_dependent_uzawa_model(model, params: dict) -> None:
     solver = _choose_solver(model, params)
 
     def uzawa_algorithm() -> None:
-        uzawa_iteration_counter = 0
         converged = False
-        max_uzawa_itr = 100  # Maximum number of outer Uzawa iterations
+        max_uzawa_itr = 150  # Maximum number of outer Uzawa iterations
         total_itr = 0
-        max_total_itr = 20000  # Maximum number of accumulated Newton iterations
-        while not converged and total_itr <= max_total_itr:     
+        while not converged and model.uzawa_itr <= max_uzawa_itr:     
             # One iteration of the Uzawa loop consists of replacing the complementarity
             # functions with regularized versions, and solving the resulting nonlinear
             # system.
@@ -105,7 +46,7 @@ def run_time_dependent_uzawa_model(model, params: dict) -> None:
             # Newton solver.
             uzawa_increment_norm = model.compute_nonlinear_increment_norm(uzawa_increment)
             residual_contact_norm = model.compute_residual_norm(residual_contact, residual_contact)
-            print(residual_contact_norm)
+            # print(residual_contact_norm)
             # First check if the Uzawa loop diverged to infinity.
             div_tol = 1e8
             if residual_contact_norm > div_tol:
@@ -114,14 +55,13 @@ def run_time_dependent_uzawa_model(model, params: dict) -> None:
             tol_residual_contact = params["nl_convergence_tol_res"]
             if uzawa_increment_norm < tol_uzawa_increment and residual_contact_norm < tol_residual_contact:
                 converged = True
-            uzawa_iteration_counter += 1
 
         if converged:
-            model.after_uzawa_convergence(uzawa_iteration_counter)
+            model.after_uzawa_convergence(model.uzawa_itr)
         else:
             model.after_uzawa_failure()
-        print("Uzawa iteration counter:", uzawa_iteration_counter)
-        print("Total iteration counter:", model.total_itr)
+        # print("Uzawa iteration counter:", model.uzawa_itr)
+        # print("Total iteration counter:", model.total_itr)
 
     # Define a function that does all the work during one time step.
     def time_step() -> None:
