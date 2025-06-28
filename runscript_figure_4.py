@@ -58,6 +58,7 @@ class SimpleInjection(InitialCondition,
                       LebesgueConvergenceMetrics,
                       AlternativeTangentialEquation,
                       DimensionalContactTraction,
+                      IterationExporting,
                       NormalPermeabilityFromSecondary,
                       pp.constitutive_laws.CubicLawPermeability,
                       pp.poromechanics.Poromechanics):

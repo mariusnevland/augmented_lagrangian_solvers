@@ -59,7 +59,7 @@ class IterationExporting:
 
         # Add contact states
         states = self.compute_fracture_states(split_output=True)
-        print(states)
+        # print(states)
         try:
             prev_states = self.prev_states.copy()
         except:
@@ -68,6 +68,11 @@ class IterationExporting:
         for i, sd in enumerate(self.mdg.subdomains(dim=self.nd - 1)):
             data.append((sd, "states", states[i]))
             data.append((sd, "prev states", prev_states[i]))
+        for sd in self.mdg.subdomains(dim=self.nd - 1):
+            normal_traction = self.normal_component([sd]) @ self.contact_traction([sd])
+            tangential_traction = self.tangential_component([sd]) @ self.contact_traction([sd])
+            data.append((sd, "tangential_traction", tangential_traction.value(self.equation_system)))
+            data.append((sd, "normal_traction", normal_traction.value(self.equation_system)))
         # Cache contact states
         self.prev_state = states.copy()
 
