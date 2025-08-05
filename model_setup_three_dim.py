@@ -53,7 +53,6 @@ class EllipticFractureNetwork:
                 0,
                 np.pi / 3,
             )
-        # self._fractures = [f_1, f_2, f_3, f_4, f_5]
         self._fractures = [f_1, f_2, f_4]
 
     def grid_type(self) -> Literal["simplex", "cartesian", "tensor_grid"]:
