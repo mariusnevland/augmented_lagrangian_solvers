@@ -13,7 +13,7 @@ FloatType = TypeVar("FloatType", AdArray, np.ndarray, float)
 # from the rest of the system. 
 # NB! To run a model using the implicit Uzawa algorithm, you need to call run_implicit_uzawa_model.
 
-class ClassicalReturnMap:
+class ImplicitReturnMap:
 
     total_itr = 0  # Counter for the total number of nonlinear iterations 
                    # (i.e. number of linear systems solved)
