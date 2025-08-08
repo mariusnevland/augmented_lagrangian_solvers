@@ -1,11 +1,15 @@
 import numpy as np
 import porepy as pp
 import scipy.sparse as sps
-from typing import TypeVar
+from typing import TypeVar, Callable, Optional, cast
 from functools import partial
 Scalar = pp.ad.Scalar
 from porepy.numerics.ad.forward_mode import AdArray
+from porepy.models.constitutive_laws import PressureStress
 FloatType = TypeVar("FloatType", AdArray, np.ndarray, float)
+
+# Collection of mixins used in both the two- and three-dimensional models.
+
 
 class ContactMechanicsConstant:
 
@@ -16,17 +20,7 @@ class ContactMechanicsConstant:
     ) -> pp.ad.Scalar:
         val = 1e-1
         return pp.ad.Scalar(val, name="Contact_mechanics_numerical_constant")
-    
-    
-class ContactMechanicsConstant2:
 
-    # In case you need two different constants.
-
-    def contact_mechanics_numerical_constant(
-        self, subdomains: list[pp.Grid]
-    ) -> pp.ad.Scalar:
-        val = 1e2
-        return pp.ad.Scalar(val, name="Contact_mechanics_numerical_constant")
 
 class AlternativeTangentialEquation:
 
@@ -35,33 +29,13 @@ class AlternativeTangentialEquation:
 
     # We also change the max-function to use the second argument in case of a tie.
     # Doing so for the tangential function significantly improves the robustness of
-    # the Newton solver with a return map.
+    # GNM-RM.
 
     def tangential_fracture_deformation_equation(
         self,
         subdomains: list[pp.Grid],
     ) -> pp.ad.Operator:
-        """Contact mechanics equation for the tangential constraints.
-
-        The equation is dimensionless, as we use nondimensionalized contact traction.
-        The function reads
-        .. math::
-            C_t = max(b_p, ||T_t+c_t u_t||) T_t - max(0, b_p) (T_t+c_t u_t)
-
-        with `u` being displacement jump increments, `t` denoting tangential component
-        and `b_p` the friction bound.
-
-        For `b_p = 0`, the equation `C_t = 0` does not in itself imply `T_t = 0`, which
-        is what the contact conditions require. The case is handled through the use of a
-        characteristic function.
-
-        Parameters:
-            subdomains: List of fracture subdomains.
-
-        Returns:
-            complementary_eq: Contact mechanics equation for the tangential constraints.
-
-        """
+        
         num_cells = sum([sd.num_cells for sd in subdomains])
         nd_vec_to_tangential = self.tangential_component(subdomains)
 
@@ -118,33 +92,7 @@ class AlternativeTangentialEquation:
         return characteristic
     
     def maximum(self, var_0: FloatType, var_1: FloatType) -> FloatType:
-        """Ad maximum function represented as an AdArray.
-
-        The maximum function is defined as the element-wise maximum of two arrays.
-        At equality, the Jacobian is taken from the first argument. The order of the
-        arguments may be important, since it determines which Jacobian is used in
-        the case of equality.
-
-        The arguments can be either AdArrays or ndarrays, this duality is needed to allow
-        for parsing of operators that can be taken at the current iteration (in which case
-        it will parse as an AdArray) or at the previous iteration or time step (in which
-        case it will parse as a numpy array).
-
-
-        Parameters:
-            var_0: First argument to the maximum function.
-            var_1: Second argument.
-
-            If one of the input arguments is scalar, broadcasting will be used.
-
-
-        Returns:
-            The maximum of the two arguments, taken element-wise in the arrays. The return
-            type is AdArray if at least one of the arguments is an AdArray, otherwise it
-            is an ndarray. If an AdArray is returned, the Jacobian is computed according to
-            the maximum values of the AdArrays (so if element ``i`` of the maximum is
-            picked from ``var_0``, row ``i`` of the Jacobian is also picked from the
-            Jacobian of ``var_0``). If ``var_0`` is a ndarray, its Jacobian is set to zero.
+        """Alternative maximum function that chooses the second argument in case of a tie.
 
         """
         # If neither var_0 or var_1 are AdArrays, return the numpy maximum function.
@@ -240,3 +188,124 @@ class DimensionalContactTraction:
         t_char = Scalar(1.0)
         t_char.set_name("characteristic_contact_traction")
         return t_char
+    
+
+class LebesgueMetric:  # (BaseMetric):
+    """Dimension-consistent Lebesgue metric (blind to physics), but separates dimensions."""
+
+    equation_system: pp.EquationSystem
+    """EquationSystem object for the current model. Normally defined in a mixin class
+    defining the solution strategy.
+
+    """
+    volume_integral: Callable[[pp.ad.Operator, list[pp.Grid], int], pp.ad.Operator]
+    """General volume integral operator, defined in `pp.BalanceEquation`."""
+
+    def variable_norm(
+        self, values: np.ndarray, variables: Optional[list[pp.ad.Variable]] = None
+    ) -> float:
+        """Implementation of mixed-dimensional Lebesgue L2 norm of a physical state.
+
+        Parameters:
+            values: algebraic respresentation of a mixed-dimensional variable
+            variables: list of variables to be considered
+
+        Returns:
+            float: measure of values
+
+        """
+        # Initialize container for collecting separate L2 norms (squarred).
+        integrals_squarred = []
+
+        # Use the equation system to get a view onto mixed-dimensional data structures.
+        # Compute the L2 norm of each variable separately, automatically taking into
+        # account volume and specific volume
+        if variables is None:
+            variables = self.equation_system.variables
+        for variable in variables:
+
+            # Assume low-order discretization with 1 DOF per active entity
+            variable_dim = variable._cells + variable._faces + variable._nodes
+            l2_norm = pp.ad.Function(partial(pp.ad.l2_norm, variable_dim), "l2_norm")
+            sd = variable.domain
+            indices = self.equation_system.dofs_of([variable])
+            ad_values = pp.ad.DenseArray(values[indices])
+            integral_squarred = np.sum(
+                self.volume_integral(l2_norm(ad_values) ** 2, [sd], 1).value(
+                    self.equation_system
+                )
+            )
+
+            # Collect the L2 norm squared.
+            integrals_squarred.append(integral_squarred)
+
+        # Squash all results by employing a consistent L2 approach.
+        return np.sqrt(np.sum(integrals_squarred))
+
+    def residual_norm(
+        self,
+        residual: np.ndarray,
+    ) -> float:
+        """Essentially an Euclidean norm as the residuals already integrate over cells."""
+        residual_norm = np.linalg.norm(residual)
+        return residual_norm
+    
+
+class LebesgueConvergenceMetrics:
+
+    def compute_nonlinear_increment_norm(
+        self, nonlinear_increment: np.ndarray
+    ) -> float:
+
+        return LebesgueMetric.variable_norm(self, nonlinear_increment)
+    
+    def compute_residual_norm(self, residual: np.ndarray, reference_residual: np.ndarray) -> float:
+        return LebesgueMetric.residual_norm(self, residual)
+    
+
+class NormalPermeabilityFromSecondary:
+    """Introduce the cubic law for the normal permeability."""
+
+    def normal_permeability(self, interfaces: list[pp.MortarGrid]) -> pp.ad.Operator:
+        subdomains = self.interfaces_to_subdomains(interfaces)
+        projection = pp.ad.MortarProjections(self.mdg, subdomains, interfaces, dim=1)
+        aperture = self.aperture(subdomains)
+        permeability = (aperture ** Scalar(2)) / Scalar(12)
+        normal_perm = projection.secondary_to_mortar_avg() @ permeability
+        return normal_perm
+
+
+class CustomPressureStress(PressureStress):
+    """Remove the reference pressure from the stress tensor, as we do not use a reference stress."""
+
+    def pressure_stress(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
+        for sd in subdomains:
+            # The stress is only defined in matrix subdomains. The stress from fluid
+            # pressure in fracture subdomains is handled in :meth:`fracture_stress`.
+            if sd.dim != self.nd:
+                raise ValueError("Subdomain must be of dimension nd.")
+
+        # No need to accommodate different discretizations for the stress tensor, as we
+        # have only one.
+        discr = pp.ad.BiotAd(self.stress_keyword, subdomains)
+        # The stress is simply found by the scalar_gradient operator, multiplied with
+        # the pressure perturbation. The reference pressure is only defined on
+        # sd_primary, thus there is no need for a subdomain projection.
+        stress: pp.ad.Operator = discr.scalar_gradient(
+            self.darcy_keyword
+        ) @ self.perturbation_from_reference_new("pressure", subdomains)
+        stress.set_name("pressure_stress")
+        return stress
+    
+
+    def perturbation_from_reference_new(self, name: str, grids: list[pp.Grid]):
+        quantity = getattr(self, name)
+        # This will throw an error if the attribute is not callable
+        quantity_op = cast(pp.ad.Operator, quantity(grids))
+        # the reference values are a data class instance storing only numbers
+        quantity_ref = cast(pp.number, 0)
+        # The casting reflects the expected outcome, and is used to help linters find
+        # the set_name method
+        quantity_perturbed = quantity_op - pp.ad.Scalar(quantity_ref)
+        quantity_perturbed.set_name(f"{name}_perturbation")
+        return quantity_perturbed
