@@ -9,18 +9,17 @@ from heatmap import *
 from model_setup_two_dim import *
 from run_and_report_single import *
 from parameters import *
-from cubic_normal_permeability import *
-from convergence_metrics import *
+from model_setup_common import *
 from export_iterations import *
-from contact_mechanics_mixins import *
 from contact_states_counter import *
-from custom_pressure_stress import *
+
+# Runscript for producing figure 4 in the article.
 
 class SimpleInjectionInit(MoreFocusedFractures,
                           AnisotropicStressBC,
                           ConstantPressureBC,
                           CustomPressureStress,
-                          ConstrainedPressureEquaton,
+                          ConstrainedPressureEquation,
                           LebesgueConvergenceMetrics,
                           AlternativeTangentialEquation,
                           ContactMechanicsConstant,
@@ -58,7 +57,6 @@ class SimpleInjection(InitialCondition,
                       LebesgueConvergenceMetrics,
                       AlternativeTangentialEquation,
                       DimensionalContactTraction,
-                      IterationExporting,
                       NormalPermeabilityFromSecondary,
                       pp.constitutive_laws.CubicLawPermeability,
                       pp.poromechanics.Poromechanics):
@@ -66,9 +64,9 @@ class SimpleInjection(InitialCondition,
 
 # Test the solvers across different c-values and injection pressures.
 
-c_values = [1e-3]
-solvers = ["Newton"]
-injection_pressures = [1.0 * 1e7]
+c_values = [1e2, 1e3]
+solvers = ["GNM-RM"]
+injection_pressures = [0.1 * 1e7]
 
 itr_list = []
 fig_index = ["a"]
@@ -83,7 +81,7 @@ for (pressure, ind) in zip(injection_pressures, fig_index):
     itr_list = np.array(itr_list).reshape((len(solvers),len(c_values)))
     print(itr_list)
     # c_vals = ["1e-4", "1e-3", "1e-2", "1e-1", "1e0", "1e1", "1e2", "1e3", "1e4"]
-    # solvers_ticks = ["GNM", "GNM-RM", "RM"]
+    # solvers_ticks = ["GNM", "GNM-RM", "IRM"]
     # heatmap(data=itr_list, vmin=1, vmax=100, xticks=c_vals, yticks=solvers_ticks,
     #         xlabel="c-parameter", file_name=f"fig4{ind}", title=f"Injection pressure {int(pressure/1e6)} MPa, " + r"$\psi$=5 degrees")
     itr_list = []

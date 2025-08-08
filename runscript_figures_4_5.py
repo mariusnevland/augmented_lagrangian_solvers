@@ -4,20 +4,18 @@ import copy
 from model_setup_two_dim import *
 from run_and_report_single import *
 from parameters import *
-from cubic_normal_permeability import *
-from convergence_metrics import *
 from export_iterations import *
-from contact_mechanics_mixins import *
 from contact_states_counter import *
 from porepy.applications.test_utils.models import add_mixin
-from custom_pressure_stress import *
+from model_setup_common import *
 
+# Runscript for producing figures 5 and 6 in the article.
 
 class SimpleInjectionInit(MoreFocusedFractures,
                           AnisotropicStressBC,
                           ConstantPressureBC,
                           CustomPressureStress,
-                          ConstrainedPressureEquaton,
+                          ConstrainedPressureEquation,
                           LebesgueConvergenceMetrics,
                           AlternativeTangentialEquation,
                           ContactMechanicsConstant,
@@ -64,7 +62,7 @@ class SimpleInjection(InitialCondition,
 
 # Figure 5a
 c_value = 1e2
-solvers = ["Newton", "ClassicalReturnMap", "NewtonReturnMap"]
+solvers = ["GNM", "IRM", "GNM-RM"]
 for solver in solvers:
     params = copy.deepcopy(params_injection_2D)
     params["max_iterations"] = 50
@@ -78,12 +76,12 @@ plt.savefig("fig5a.png", dpi=300, bbox_inches="tight")
 plt.close()
 
 # Figure 5b
-solver = "DelayedNewtonReturnMap"
+solver = "Delayed_GNM-RM"
 params = copy.deepcopy(params_injection_2D)
 params["make_fig5b"] = True
 params["injection_overpressure"] = 0.8 * 1e7
 _ = run_and_report_single(Model=SimpleInjection, params=params, c_value=c_value, solver=solver)
-plt.legend(["Return map on", "Return map off"], fontsize=14)
+plt.legend(["Return map off", "Return map on"], fontsize=14)
 plt.xlabel("Iteration", fontsize=14)
 plt.ylabel("Residual norm", fontsize=14)
 plt.savefig("fig5b.png", dpi=300, bbox_inches="tight")
@@ -91,7 +89,7 @@ plt.close()
 
 # Figure 6
 ModelWithContactCounter = add_mixin(ContactStatesCounter, SimpleInjection)
-solvers = ["Newton", "NewtonReturnMap", "ClassicalReturnMap"]
+solvers = ["GNM", "GNM-RM", "IRM"]
 for solver in solvers:
     params = copy.deepcopy(params_injection_2D)
     params["make_fig6"] = True
