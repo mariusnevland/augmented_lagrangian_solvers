@@ -1,6 +1,5 @@
 import numpy as np
 import porepy as pp
-from contact_mechanics_mixins import *
 
 # Add a postprocessing step after every Newton iteration that functions
 # as a return map for the contact forces. If the tangential traction is
@@ -11,9 +10,13 @@ from contact_mechanics_mixins import *
 
 
 class NewtonReturnMap:
+    
+    # Generalized Newton method with a return map (GNM-RM).
+
     # Note: We perform the return map before the nonlinear iteration (i.e. after the previous iteration)
     # since we want the convergence check to be done on the regular Newton update. It is not done
     # before the very first iteration.
+    
     res_before = []
     res_after = []
 

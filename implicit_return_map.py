@@ -1,32 +1,33 @@
 import porepy as pp
 import numpy as np
-from typing import Literal, Optional
+from typing import Optional
 from functools import partial
 import scipy.sparse as sps
-from typing import TypeVar
+from typing import TypeVar, Union
+import logging
+logger = logging.getLogger(__name__)
 Scalar = pp.ad.Scalar
 from porepy.numerics.ad.forward_mode import AdArray
 FloatType = TypeVar("FloatType", AdArray, np.ndarray, float)
 
 
-# The implicit variant of the Uzawa algorithm, where the contact conditions are not decoupled
-# from the rest of the system. 
-# NB! To run a model using the implicit Uzawa algorithm, you need to call run_implicit_uzawa_model.
+# The implicit return map method, which is equivalent to an Uzawa algorithm.
+# NB! To run a model using this algorithm, you need to call run_implicit_return_map_model().
 
 class ImplicitReturnMap:
 
     total_itr = 0  # Counter for the total number of nonlinear iterations 
                    # (i.e. number of linear systems solved)
 
-    uzawa_itr = 0
+    outer_loop_itr = 0
 
     c_n: float  # Regularization parameter
 
     c_t: float  # Regularization parameter
 
-    t_n_prev: np.ndarray  # Normal traction from previous Uzawa step.
+    t_n_prev: np.ndarray  # Normal traction from previous step of the outer loop.
 
-    t_t_prev: np.ndarray  # Tangential traction from previous Uzawa step.
+    t_t_prev: np.ndarray  # Tangential traction from previous step of the outer loop.
 
     def contact_mechanics_normal_constant(self, subdomains: list[pp.Grid]) -> pp.ad.Scalar:
 
@@ -67,6 +68,7 @@ class ImplicitReturnMap:
         self,
         subdomains: list[pp.Grid],
     ) -> pp.ad.Operator:
+        """Regularized version of the tangential fracture deformation equation."""
 
         num_cells = sum([sd.num_cells for sd in subdomains])
         nd_vec_to_tangential = self.tangential_component(subdomains)
@@ -109,35 +111,6 @@ class ImplicitReturnMap:
         return equation
     
     def maximum(self, var_0: FloatType, var_1: FloatType) -> FloatType:
-        """Ad maximum function represented as an AdArray.
-
-        The maximum function is defined as the element-wise maximum of two arrays.
-        At equality, the Jacobian is taken from the first argument. The order of the
-        arguments may be important, since it determines which Jacobian is used in
-        the case of equality.
-
-        The arguments can be either AdArrays or ndarrays, this duality is needed to allow
-        for parsing of operators that can be taken at the current iteration (in which case
-        it will parse as an AdArray) or at the previous iteration or time step (in which
-        case it will parse as a numpy array).
-
-
-        Parameters:
-            var_0: First argument to the maximum function.
-            var_1: Second argument.
-
-            If one of the input arguments is scalar, broadcasting will be used.
-
-
-        Returns:
-            The maximum of the two arguments, taken element-wise in the arrays. The return
-            type is AdArray if at least one of the arguments is an AdArray, otherwise it
-            is an ndarray. If an AdArray is returned, the Jacobian is computed according to
-            the maximum values of the AdArrays (so if element ``i`` of the maximum is
-            picked from ``var_0``, row ``i`` of the Jacobian is also picked from the
-            Jacobian of ``var_0``). If ``var_0`` is a ndarray, its Jacobian is set to zero.
-
-        """
         # If neither var_0 or var_1 are AdArrays, return the numpy maximum function.
         if not isinstance(var_0, AdArray) and not isinstance(var_1, AdArray):
             # FIXME: According to the type hints, this should not be possible.
@@ -230,16 +203,16 @@ class ImplicitReturnMap:
     def after_nonlinear_convergence(
         self, iteration_counter: Optional[int] = None
     ) -> None:
-        """Some postprocessing is needed before proceeding to the next Uzawa iteration.
+        """Some postprocessing is needed before proceeding to the next outer iteration.
         Note also that we do not proceed to the next time step after nonlinear convergence,
-        as we also require the outer Uzawa loop to converge.
+        as we also require the outer loop to converge.
         """
         # Update numerical constants. Lots of options for how to update.
         self.c_n += 0
         self.c_t += 0
 
         # Update normal and tangential tractions, to be used as constants in the next
-        # Uzawa iteration.
+        # outer iteration.
         subdomains = self.mdg.subdomains(dim=self.nd - 1)
         t = self.contact_traction(subdomains)
         t_n = self.normal_component(subdomains) @ self.contact_traction(
@@ -259,14 +232,14 @@ class ImplicitReturnMap:
         # Keep track of the total number of nonlinear iterations
         # In other words, the total number of linear systems solved.
         self.total_itr += self.nonlinear_solver_statistics.num_iteration
-        self.uzawa_itr += 1
+        self.outer_loop_itr += 1
 
     def after_nonlinear_failure(self) -> None:
         """Method to be called if the inner Newton loop fails to converge."""
         raise ValueError("Inner Newton loop failed to converge.")
 
-    def after_uzawa_convergence(self, iteration_counter: int) -> None:
-        """Method to be called after the Uzawa algorithm has converged.
+    def after_outer_loop_convergence(self, iteration_counter: int) -> None:
+        """Method to be called after the return map algorithm has converged.
 
         Note that this method is nearly identical to the after_nonlinear_convergence()
         method in the case of a standard Newton solver. Hence, we have advanced to the
@@ -284,9 +257,104 @@ class ImplicitReturnMap:
         self.c_t = self.c_t_init
         # We do not reset t_n_prev and t_t_prev, as we want the initial
         # guess at the next time step to be the solution at the previous time step.
-        print("Uzawa converged")  # To help me keep track during debugging
 
-    def after_uzawa_failure(self) -> None:
-        """Method to be called if the outer Uzawa loop fails to converge."""
+    def after_outer_loop_failure(self) -> None:
+        """Method to be called if the outer loop fails to converge."""
         self.save_data_time_step()
-        raise ValueError("Uzawa iterations did not converge.")
+        raise ValueError("Outer loop iterations did not converge.")
+
+
+def run_implicit_return_map_model(model, params: dict) -> None:
+    """Run a time-dependent model using the implicit return map method. Must be combined
+    with a mixin defining the Uzawa equations and solution strategy."""
+
+    # Assign parameters, variables and discretizations. Discretize time-indepedent terms
+    if params.get("prepare_simulation", True):
+        model.prepare_simulation()
+
+    # Assign a solver for the regularized systems in the inner loop of the return map algorithm.
+    solver = _choose_solver(model, params)
+
+    def return_map_algorithm() -> None:
+        converged = False
+        max_itr_outer = 150  # Maximum number of allowed outer loop iterations
+        total_itr = 0
+        while not converged and model.outer_loop_itr <= max_itr_outer:     
+            # One iteration of the outer loop consists of replacing the complementarity
+            # functions with regularized versions, and solving the resulting nonlinear
+            # system.
+            # The regularizations depend on the solution at the previous outer iteration.
+            val_prev = model.equation_system.get_variable_values(iterate_index=0)
+            solver.solve(model)  # Solve regularized nonlinear system.
+            total_itr += model.nonlinear_solver_statistics.num_iteration
+            val_current = model.equation_system.get_variable_values(iterate_index=0)
+
+            # Assemble residual of the original, non-regularized contact equations,
+            # to be used in the convergence check.
+            norm_eqn = \
+                pp.contact_mechanics.ContactMechanicsEquations.normal_fracture_deformation_equation\
+                    (model, model.mdg.subdomains(dim=model.nd-1))
+            tang_eqn = \
+                pp.contact_mechanics.ContactMechanicsEquations.tangential_fracture_deformation_equation\
+                    (model, model.mdg.subdomains(dim=model.nd-1))
+            res_tang = tang_eqn.value(model.equation_system,state=val_current)
+            res_norm = norm_eqn.value(model.equation_system,state=val_current)
+            residual_contact = np.concatenate((res_norm, res_tang))
+            outer_increment = val_current - val_prev
+            # Convergence check. We reuse the tolerances for the standard
+            # Newton solver.
+            outer_increment_norm = model.compute_nonlinear_increment_norm(outer_increment)
+            residual_contact_norm = model.compute_residual_norm(residual_contact, residual_contact)
+            # First check if the outer loop diverged to infinity.
+            div_tol = 1e8
+            if residual_contact_norm > div_tol:
+                break
+            tol_outer_increment = params["nl_convergence_tol"]
+            tol_residual_contact = params["nl_convergence_tol_res"]
+            if outer_increment_norm < tol_outer_increment and residual_contact_norm < tol_residual_contact:
+                converged = True
+
+        if converged:
+            model.after_outer_loop_convergence(model.outer_loop_itr)
+        else:
+            model.after_outer_loop_failure()
+
+    # Define a function that does all the work during one time step.
+    def time_step() -> None:
+        model.time_manager.increase_time()
+        model.time_manager.increase_time_index()
+        logger.info(
+            f"\nTime step {model.time_manager.time_index} at time"
+            + f" {model.time_manager.time:.1e}"
+            + f" of {model.time_manager.time_final:.1e}"
+            + f" with time step {model.time_manager.dt:.1e}"
+        )
+        return_map_algorithm()
+
+    while not model.time_manager.final_time_reached():
+        time_step()
+        eqn_lst = list(model.equation_system.equations.keys())
+        for eqn in eqn_lst:
+            model.equation_system.remove_equation(eqn)
+        model.set_equations()
+
+    model.after_simulation()
+
+
+def _choose_solver(model, params: dict) -> Union[pp.LinearSolver, pp.NewtonSolver]:
+    """Choose between linear and non-linear solver.
+
+    Parameters:
+        model: Model class containing all information on material parameters, variables,
+            discretization and geometry. Various methods such as those relating to solving
+            the system, see the appropriate solver for documentation.
+        params: Parameters related to the solution procedure.
+
+    """
+    if "nonlinear_solver" in params:
+        solver = params["nonlinear_solver"](params)
+    elif model._is_nonlinear_problem():
+        solver = pp.NewtonSolver(params)
+    else:
+        solver = pp.LinearSolver(params)
+    return solver
