@@ -30,14 +30,6 @@ class EllipticFractureNetwork:
                 -np.pi / 4,
             )
         f_3 = pp.create_elliptic_fracture(
-                np.array([400, 1500, 700]),
-                500,
-                300,
-                0.5 ,
-                -np.pi / 3,
-                np.pi / 4,
-            )
-        f_4 = pp.create_elliptic_fracture(
                 np.array([1100, 1000, 500]),
                 400,
                 500,
@@ -45,15 +37,7 @@ class EllipticFractureNetwork:
                 0,
                 np.pi / 2,
             )
-        f_5 = pp.create_elliptic_fracture(
-                np.array([1100, 1100, 1600]),
-                300,
-                400,
-                -np.pi / 2 ,
-                0,
-                np.pi / 3,
-            )
-        self._fractures = [f_1, f_2, f_4]
+        self._fractures = [f_1, f_2, f_3]
 
     def grid_type(self) -> Literal["simplex", "cartesian", "tensor_grid"]:
         return self.params.get("grid_type", "simplex")
@@ -62,96 +46,15 @@ class EllipticFractureNetwork:
         mesh_args = {"cell_size": 700 * 0.3 / self.units.m,
                      "cell_size_fracture": 300 * 0.3 / self.units.m}
         return mesh_args
-
-
-class MoreEllipticFractures:
-
-    def set_domain(self) -> None:
-        self._domain = \
-            pp.Domain(bounding_box=
-                      {'xmin': 0 / self.units.m, 'xmax': 2000 / self.units.m,
-                       'ymin': 0 / self.units.m, 'ymax': 2000 / self.units.m,
-                       'zmin': 0 / self.units.m, 'zmax': 2000 / self.units.m})
-
-    def set_fractures(self) -> None:
-        f_1 = pp.create_elliptic_fracture(
-                np.array([800, 800, 900]),
-                600,
-                300,
-                0.5,
-                np.pi / 4,
-                np.pi / 4,
-            )
-        f_2 = pp.create_elliptic_fracture(
-                np.array([800, 800, 700]),
-                600,
-                300,
-                -0.5 ,
-                -np.pi / 4,
-                -np.pi / 4,
-            )
-        f_3 = pp.create_elliptic_fracture(
-                np.array([400, 1300, 700]),
-                500,
-                300,
-                0.5 ,
-                -np.pi / 3,
-                np.pi / 4,
-            )
-        f_4 = pp.create_elliptic_fracture(
-                np.array([1100, 1000, 500]),
-                400,
-                500,
-                0.2 ,
-                0,
-                np.pi / 2,
-            )
-        f_5 = pp.create_elliptic_fracture(
-                np.array([1400, 1100, 600]),
-                300,
-                400,
-                -np.pi / 2 ,
-                0,
-                np.pi / 3,
-            )
-        f_6 = pp.create_elliptic_fracture(
-                np.array([1100, 400, 600]),
-                300,
-                400,
-                -np.pi / 2 ,
-                0,
-                np.pi / 3,
-            )
-        f_7 = pp.create_elliptic_fracture(
-                np.array([1100, 1200, 1400]),
-                300,
-                400,
-                -np.pi / 3 ,
-                0,
-                np.pi / 4,
-            )
-        f_8 = pp.create_elliptic_fracture(
-                np.array([1100, 1100, 1600]),
-                300,
-                400,
-                -np.pi / 2 ,
-                0,
-                np.pi / 3,
-            )
-        self._fractures = [f_1, f_2, f_3, f_4, f_5, f_6, f_7]
-
-    def grid_type(self) -> Literal["simplex", "cartesian", "tensor_grid"]:
-        return self.params.get("grid_type", "simplex")
-
-    def meshing_arguments(self) -> dict:
-        mesh_args = {"cell_size": 1500 * 0.3 / self.units.m}
-        return mesh_args
     
 
 class LithoStaticTraction3D:
 
     # The z-component of the litostatic traction follows the formula p=rho*g*z.
     # The x- and y-components are proportional to the z-component.
+
+    # The bottom boundary is kept fixed, while compressive tractions are imposed
+    # on the other boundaries.
 
     def _depth(self, coords) -> np.ndarray:
         # We assume that the bottom of our domain (which has z-coordinate zero)
@@ -187,102 +90,12 @@ class LithoStaticTraction3D:
         return values
     
 
-class HydrostaticPressureGradient3D:
-
-    # Pressure gradient directly based on the hydrostatic pressure, i.e 
-    # the pressure will linearly increase from top to bottom, according to
-    # p=rho*g*z.
-
-    # Dirichlet (pressure) conditions on all boundaries. That is the default
-    # option for the bc_type methods, so they do not need to be overwritten.
-
-    def _depth(self, coords) -> np.ndarray:
-        # We assume that the bottom of our domain (which has z-coordinate zero)
-        # is at 3km depth.
-        return 3000 - coords
-
-    def hydrostatic_pressure(self, depth):
-        rho = self.params["material_constants"]["fluid"].constants_in_SI["density"]
-        return self.units.convert_units(rho * pp.GRAVITY_ACCELERATION * depth, "Pa")
-
-    def bc_values_pressure(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
-        values = np.zeros(boundary_grid.num_cells)
-        # Find the depth of the cell centers, i.e. their z-coordinates.
-        depth = self._depth(boundary_grid.cell_centers[2,:])
-        all_bf, *_ = self.domain_boundary_sides(boundary_grid)
-        values[all_bf] = self.hydrostatic_pressure(depth)
-        return values
-    
-
 class ConstrainedPressureEquaton3D:
- 
+
      def mass_balance_equation(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
          eq = self.pressure(subdomains) - pp.ad.Scalar(self.units.convert_units(2e7, "Pa"))
          eq.set_name("new mass balance")
          return eq
-     
-
-class PressureConstraintWell3D:
-
-    def update_time_dependent_ad_arrays(self) -> None:
-        """Set current injection pressure."""
-        super().update_time_dependent_ad_arrays()
- 
-        # Update injection pressure
-        current_injection_pressure = self.units.convert_units(2e7, "Pa") + self.units.convert_units(1e7, "Pa")
-        for sd in self.mdg.subdomains(return_data=False):
-            pp.set_solution_values(
-                name="current_injection_pressure",
-                values=np.array([current_injection_pressure]),
-                data=self.mdg.subdomain_data(sd),
-                iterate_index=0,
-            )
- 
-    def _fracture_center_cell(self, sd: pp.Grid) -> np.ndarray:
-        # Compute the fracture cell that is closest to the center of the fracture
-        mean_coo = np.mean(sd.cell_centers, axis=1).reshape((3, 1))
-        center_cell = sd.closest_cell(mean_coo)
-        return center_cell
- 
-    def mass_balance_equation(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
-        std_eq = super().mass_balance_equation(subdomains)
- 
-        # Need to embedd in full domain
-        sd_indicator = [np.zeros(sd.num_cells) for sd in subdomains]
- 
-        # Pick the only subdomain
-        fracture_sds = [sd for sd in subdomains if sd.dim == self.nd - 1]
- 
-        if len(fracture_sds) == 0:
-            return std_eq
- 
-        # Pick a single fracture
-        well_sd = fracture_sds[0]
- 
-        for i, sd in enumerate(subdomains):
-            if sd == well_sd:
- 
-                well_loc_ind = self._fracture_center_cell(sd)
-                sd_indicator[i][well_loc_ind] = 1
- 
-        # Characteristic functions
-        indicator = np.concatenate(sd_indicator)
-        reverse_indicator = 1 - indicator
- 
-        current_injection_pressure = pp.ad.TimeDependentDenseArray(
-            "current_injection_pressure", [self.mdg.subdomains()[0]]
-        )
-        constrained_eq = self.pressure(subdomains) - current_injection_pressure
- 
-        eq_with_pressure_constraint = (
-            pp.ad.DenseArray(reverse_indicator) * std_eq
-            + pp.ad.DenseArray(indicator) * constrained_eq
-        )
-        eq_with_pressure_constraint.set_name(
-            "mass_balance_equation_with_constrained_pressure"
-        )
- 
-        return eq_with_pressure_constraint
     
 
 class HydrostaticPressure:
@@ -352,6 +165,8 @@ class HydrostaticPressureBC(HydrostaticPressure):
 
 class HydroStaticPressureInitialization(HydrostaticPressure):
 
+    # Set the pressure equal to the hydrostatic pressure, to be used for initialization.
+
     def mass_balance_equation(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
         """Overwrites mass balance equation to set the pressure equal to the hydrostatic pressure."""
         hydrostatic_pressure = pp.ad.TimeDependentDenseArray(
@@ -364,7 +179,7 @@ class HydroStaticPressureInitialization(HydrostaticPressure):
     
 
 class PressureConstraintWell3D:
-    """Pressurize specific fractures in their center."""
+    """Pressurize specific fractures in their center, representing an injection well."""
 
     def _fracture_center_cell(self, sd: pp.Grid) -> np.ndarray:
         # Compute the fracture cell that is closest to the center of the fracture
