@@ -2,16 +2,15 @@ import numpy as np
 import porepy as pp
 import copy
 from model_setup_two_dim import *
-from run_and_report_single import *
+from plot_utils import *
 from parameters import *
-from export_iterations import *
-from contact_states_counter import *
+from postprocessing_mixins import *
 from porepy.applications.test_utils.models import add_mixin
 from model_setup_common import *
 
-# Runscript for producing figures 5 and 6 in the article.
+# Runscript for producing figures 4 and 5 in the article.
 
-class SimpleInjectionInit(MoreFocusedFractures,
+class SimpleInjectionInit(FractureNetwork2D,
                           AnisotropicStressBC,
                           ConstantPressureBC,
                           CustomPressureStress,
@@ -46,7 +45,7 @@ class InitialCondition:
 
 
 class SimpleInjection(InitialCondition,
-                      MoreFocusedFractures,
+                      FractureNetwork2D,
                       PressureConstraintWell,
                       AnisotropicStressBC,
                       ConstantPressureBC,
@@ -60,39 +59,39 @@ class SimpleInjection(InitialCondition,
     pass
 
 
-# Figure 5a
+# Figure 4a
 c_value = 1e2
 solvers = ["GNM", "IRM", "GNM-RM"]
 for solver in solvers:
     params = copy.deepcopy(params_injection_2D)
     params["max_iterations"] = 50
-    params["make_fig5a"] = True
-    params["injection_overpressure"] = 0.8 * 1e7
+    params["make_fig4a"] = True
+    params["injection_overpressure"] = 1.0 * 1e7
     _ = run_and_report_single(Model=SimpleInjection, params=params, c_value=c_value, solver=solver)
 plt.legend(["GNM", "IRM", "GNM-RM"], fontsize=14)
 plt.xlabel("Iteration", fontsize=14)
 plt.ylabel("Residual norm", fontsize=14)
-plt.savefig("fig5a.png", dpi=300, bbox_inches="tight")
+plt.savefig("Fig4a.png", dpi=300, bbox_inches="tight")
 plt.close()
 
-# Figure 5b
+# Figure 4b
 solver = "Delayed_GNM-RM"
 params = copy.deepcopy(params_injection_2D)
-params["make_fig5b"] = True
+params["make_fig4b"] = True
 params["injection_overpressure"] = 0.8 * 1e7
 _ = run_and_report_single(Model=SimpleInjection, params=params, c_value=c_value, solver=solver)
 plt.legend(["Return map off", "Return map on"], fontsize=14)
 plt.xlabel("Iteration", fontsize=14)
 plt.ylabel("Residual norm", fontsize=14)
-plt.savefig("fig5b.png", dpi=300, bbox_inches="tight")
+plt.savefig("Fig4b.png", dpi=300, bbox_inches="tight")
 plt.close()
 
-# Figure 6
+# Figure 5
 ModelWithContactCounter = add_mixin(ContactStatesCounter, SimpleInjection)
 solvers = ["GNM", "GNM-RM", "IRM"]
 for solver in solvers:
     params = copy.deepcopy(params_injection_2D)
-    params["make_fig6"] = True
+    params["make_fig5"] = True
     params["max_iterations"] = 30
     params["injection_overpressure"] = 0.8 * 1e7
     _ = run_and_report_single(Model=ModelWithContactCounter, params=params, c_value=c_value, solver=solver)
@@ -101,15 +100,15 @@ for solver in solvers:
     if solver == "Newton":
         plt.legend(["Open", "Stick", "Slip"], fontsize=14, loc=(0.74,0.1))
         plt.title("GNM", fontsize=14)
-        plt.savefig("fig6a.png", dpi=300, bbox_inches="tight")
+        plt.savefig("Fig5a.png", dpi=300, bbox_inches="tight")
         plt.close()
     elif solver == "NewtonReturnMap":
         plt.legend(["Open", "Stick", "Slip"], fontsize=14)
         plt.title("GNM-RM", fontsize=14)
-        plt.savefig("fig6b.png", dpi=300, bbox_inches="tight")
+        plt.savefig("Fig5b.png", dpi=300, bbox_inches="tight")
         plt.close()
     else:
         plt.legend(["Regularized open", "Regularized stick", "Regularized slip"], fontsize=14)
         plt.title("IRM", fontsize=14)
-        plt.savefig("fig6c.png", dpi=300, bbox_inches="tight")
+        plt.savefig("Fig5c.png", dpi=300, bbox_inches="tight")
         plt.close()

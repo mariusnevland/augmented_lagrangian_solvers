@@ -140,37 +140,29 @@ def run_and_report_single(Model,
             pp.run_time_dependent_model(model, params)
             itr = model.total_itr
             res = model.nonlinear_solver_statistics.residual_norms
-            if model.params.get("make_fig5a", False):
+            if model.params.get("make_fig4a", False):
                 plt.semilogy(np.arange(0, len(res)), res, color="blue")
-            elif model.params.get("make_fig5b", False):
+            elif model.params.get("make_fig4b", False):
                 return_map_switch = 20
                 itr = np.arange(0, len(res))
                 plt.semilogy(itr[:return_map_switch+1], res[:return_map_switch+1], color="blue")
                 plt.semilogy(itr[return_map_switch:], res[return_map_switch:], linestyle="--", color="blue")
-            elif model.params.get("make_fig6", False):
+            elif model.params.get("make_fig5", False):
                 plt.plot(model.num_open, color="orange")
                 plt.plot(model.num_stick, color="red")
                 plt.plot(model.num_glide, color="blue")
-            elif model.params.get("make_fig9b", False) and c_value == 1e2 and model.params.get("injection_overpressure", 0) == 1e7:
-                plt.semilogy(np.arange(0, len(res)), res, color="blue")
-            elif model.params.get("make_fig8b", False):
-                np.save("residual_norms.npy", res)
-                plt.semilogy(np.arange(0, len(res)), res, color="green")
-                plt.savefig("fig8b.png", dpi=300, bbox_inches="tight")
         except:
             res = model.nonlinear_solver_statistics.residual_norms
             if res[-1] > 1e5 or np.isnan(np.array(res[-1])):
                 itr = 500
             else:
                 itr = 0
-            if model.params.get("make_fig5a", False):
+            if model.params.get("make_fig4a", False):
                 plt.semilogy(np.arange(0, len(res)), res, color="red")
-            elif model.params.get("make_fig6", False):
+            elif model.params.get("make_fig5", False):
                 plt.plot(model.num_open, color="orange")
                 plt.plot(model.num_stick, color="red")
                 plt.plot(model.num_glide, color="blue")
-            elif model.params.get("make_fig9b", False) and c_value == 1e2 and model.params.get("injection_overpressure", 0) == 1e7:
-                plt.semilogy(np.arange(0, len(res)), res, color="red")
     if solver == "IRM":
         try:
             run_implicit_return_map_model(model, params)
@@ -183,9 +175,9 @@ def run_and_report_single(Model,
                 itr = -1
             else:
                 itr = 0
-            if model.params.get("make_fig5a", False):
+            if model.params.get("make_fig4a", False):
                 plt.semilogy(np.arange(0, len(res)), res, color="orange")
-            elif model.params.get("make_fig6", False):
+            elif model.params.get("make_fig5", False):
                 plt.plot(model.num_open, color="orange")
                 plt.plot(model.num_stick, color="red")
                 plt.plot(model.num_glide, color="blue")
