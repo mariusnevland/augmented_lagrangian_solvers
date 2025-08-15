@@ -8,3 +8,4 @@ The code is structured as follows:
 - The remaining files contain various utility methods for running simulations, visualization etc. 
 
 This code has been run using PorePy commit `993208680a4382b0a96aecba1fe93bee1348eb02`.
+The results of the paper can be reproduced by downloading the Docker image available on Zenodo https://zenodo.org/records/16881390.
