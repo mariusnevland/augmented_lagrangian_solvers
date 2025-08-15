@@ -41,9 +41,6 @@ material_constants_larger_dilation = {**material_constants, "solid": solid_large
 params_initialization = {
     "max_iterations": 100,
     "material_constants": material_constants,
-    "time_manager": pp.TimeManager(
-        schedule=[0, 10 * pp.DAY], dt_init=10 * pp.DAY, constant_dt=True
-    ),
     "units": units,
     "nl_convergence_tol": nl_convergence_tol,
     "nl_convergence_tol_res": nl_convergence_tol_res,
@@ -70,7 +67,7 @@ params_injection_2D = {
 }
 
 
-params_plots_2D = {
+params_grid_refinement_2D = {
     "max_iterations": 100,
     "material_constants": material_constants,
     "time_manager": pp.TimeManager(
@@ -80,12 +77,14 @@ params_plots_2D = {
     "nl_convergence_tol": nl_convergence_tol,
     "nl_convergence_tol_res": nl_convergence_tol_res,
     "linear_solver": "scipy_sparse",
-    "folder_name": "results/injection_2D",
+    "folder_name": "results/params_grid_refinement_2D",
     "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
 }
 
+params_grid_refinement_smaller_dilation = {**params_grid_refinement_2D, "material_constants": material_constants_smaller_dilation}
 
-params_testing_3D = {
+
+params_injection_3D = {
     "max_iterations": 100,
     "material_constants": material_constants,
     "time_manager": pp.TimeManager(
@@ -95,7 +94,7 @@ params_testing_3D = {
     "nl_convergence_tol": nl_convergence_tol,
     "nl_convergence_tol_res": nl_convergence_tol_res,
     "linear_solver": "scipy_sparse",
-    "folder_name": "results/testing_3D",
+    "folder_name": "results/injection_3D",
     "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
 }
 
@@ -112,32 +111,4 @@ params_initialize_pressure_3D = {
     "linear_solver": "scipy_sparse",
     "folder_name": "results/init_pressure_3D",
     "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
-}
-
-
-params_outline = {
-    "max_iterations": 100,
-    "material_constants": material_constants,
-    "time_manager": pp.TimeManager(
-        schedule=[0, 1 * pp.HOUR], dt_init=1 * pp.HOUR, constant_dt=True
-    ),
-    "units": pp.Units(kg=1e9, m=1),
-    "nl_convergence_tol": nl_convergence_tol,
-    "nl_convergence_tol_res": nl_convergence_tol_res,
-    "linear_solver": "scipy_sparse",
-    "folder_name": "results/outline",
-}
-
-
-params_export_injection_cell = {
-    "max_iterations": 100,
-    "material_constants": material_constants,
-    "time_manager": pp.TimeManager(
-        schedule=[0, 1 * pp.HOUR], dt_init=1 * pp.HOUR, constant_dt=True
-    ),
-    "units": pp.Units(kg=1e9, m=1),
-    "nl_convergence_tol": nl_convergence_tol,
-    "nl_convergence_tol_res": nl_convergence_tol_res,
-    "linear_solver": "scipy_sparse",
-    "folder_name": "results/export_injection_cell",
 }

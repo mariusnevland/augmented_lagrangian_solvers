@@ -6,14 +6,12 @@ import numpy as np
 import porepy as pp
 import copy
 from model_setup_two_dim import *
-from run_and_report_single import *
+from plot_utils import *
 from parameters import *
-from export_injection_cell import *
-from export_iterations import *
-from heatmap import *
+from postprocessing_mixins import *
 from model_setup_common import *
 
-# Runscript for producing figure 7 in the article.
+# Runscript for producing figure 6 in the article.
 # Testing the scalability of GNM and GNM-RM with respect to the grid size.
 
 grid_sizes = [175 * 0.07, 125 * 0.07, 90 * 0.07, 70 * 0.07]
@@ -30,7 +28,7 @@ for size in grid_sizes:
             return mesh_args
         
     class SimpleInjectionInit(Grid,
-                          MoreFocusedFractures,
+                          FractureNetwork2D,
                           AnisotropicStressBC,
                           ConstantPressureBC,
                           CustomPressureStress,
@@ -60,7 +58,7 @@ for size in grid_sizes:
 
     class SimpleInjection(InitialCondition,
                       Grid,
-                      MoreFocusedFractures,
+                      FractureNetwork2D,
                       PressureConstraintWellGrid,
                       AnisotropicStressBC,
                       ConstantPressureBC,
@@ -100,7 +98,7 @@ for size in grid_sizes:
 
     class SimpleInjectionSmallerDilation(InitialConditionSmallerDilation,
                       Grid,
-                      MoreFocusedFractures,
+                      FractureNetwork2D,
                       PressureConstraintWellGrid,
                       AnisotropicStressBC,
                       ConstantPressureBC,
@@ -121,8 +119,8 @@ for size in grid_sizes:
         print(itr_solver)
 itr_list = np.array(itr_list).reshape((4, 6)).T
 xticks = ["33830", "64068", "121501", "199282"]
-yticks = [r"GNM, well pressure 21MPa, c=1e-2, $\psi=5^{\circ}$", r"GNM-RM, well pressure 21MPa, c=1e-2, $\psi=5^{\circ}$",
-               r"GNM, well pressure 30MPa, c=1e-2, $\psi=5^{\circ}$", r"GNM-RM, well pressure 30MPa, c=1e-2, $\psi=5^{\circ}$",
-               r"GNM, well pressure 30MPa, c=1e-1, $\psi=3^{\circ}$", r"GNM-RM, well pressure 30MPa, c=1e-1, $\psi=3^{\circ}$"]
+yticks = [r"GNM, inj. pressure 21MPa, c=1e-2, $\psi=5^{\circ}$", r"GNM-RM, inj. pressure 21MPa, c=1e-2, $\psi=5^{\circ}$",
+               r"GNM, inj. pressure 30MPa, c=1e-2, $\psi=5^{\circ}$", r"GNM-RM, inj. pressure 30MPa, c=1e-2, $\psi=5^{\circ}$",
+               r"GNM, inj. pressure 30MPa, c=1e-1, $\psi=3^{\circ}$", r"GNM-RM, inj. pressure 30MPa, c=1e-1, $\psi=3^{\circ}$"]
 heatmap(data=itr_list, vmin=1, vmax=200, xticks=xticks, yticks=yticks,
-            xlabel="Total number of cells", file_name="fig7")
+            xlabel="Total number of cells", file_name="Fig6")
