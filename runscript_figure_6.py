@@ -116,7 +116,6 @@ for size in grid_sizes:
         params["injection_overpressure"] = 1.0 * 1e7
         itr_solver = run_and_report_single(Model=SimpleInjectionSmallerDilation, params=params, c_value=1e-1, solver=solver)
         itr_list.append(itr_solver)
-        print(itr_solver)
 itr_list = np.array(itr_list).reshape((4, 6)).T
 xticks = ["33830", "64068", "121501", "199282"]
 yticks = [r"GNM, inj. pressure 21MPa, c=1e-2, $\psi=5^{\circ}$", r"GNM-RM, inj. pressure 21MPa, c=1e-2, $\psi=5^{\circ}$",
