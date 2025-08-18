@@ -75,7 +75,6 @@ for (pressure, ind) in zip(injection_pressures, fig_index):
             itr_solver = run_and_report_single(Model=SimpleInjection, params=params, c_value=c, solver=solver)
             itr_list.append(itr_solver)
     itr_list = np.array(itr_list).reshape((len(solvers),len(c_values)))
-    print(itr_list)
     c_vals = ["1e-4", "1e-3", "1e-2", "1e-1", "1e0", "1e1", "1e2", "1e3", "1e4"]
     solvers_ticks = ["GNM", "GNM-RM", "IRM"]
     heatmap(data=itr_list, vmin=1, vmax=100, xticks=c_vals, yticks=solvers_ticks,
