@@ -97,12 +97,12 @@ for solver in solvers:
     _ = run_and_report_single(Model=ModelWithContactCounter, params=params, c_value=c_value, solver=solver)
     plt.xlabel("Iteration", fontsize=14)
     plt.ylabel("Number of cells in contact state", fontsize=14)
-    if solver == "Newton":
+    if solver == "GNM":
         plt.legend(["Open", "Stick", "Slip"], fontsize=14, loc=(0.74,0.1))
         plt.title("GNM", fontsize=14)
         plt.savefig("Fig5a.png", dpi=300, bbox_inches="tight")
         plt.close()
-    elif solver == "NewtonReturnMap":
+    elif solver == "GNM-RM":
         plt.legend(["Open", "Stick", "Slip"], fontsize=14)
         plt.title("GNM-RM", fontsize=14)
         plt.savefig("Fig5b.png", dpi=300, bbox_inches="tight")
