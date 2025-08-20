@@ -66,7 +66,7 @@ for solver in solvers:
     params = copy.deepcopy(params_injection_2D)
     params["max_iterations"] = 50
     params["make_fig4a"] = True
-    params["injection_overpressure"] = 1.0 * 1e7
+    params["injection_overpressure"] = 0.8 * 1e7
     _ = run_and_report_single(Model=SimpleInjection, params=params, c_value=c_value, solver=solver)
 plt.legend(["GNM", "IRM", "GNM-RM"], fontsize=14)
 plt.xlabel("Iteration", fontsize=14)

@@ -78,7 +78,7 @@ for (pressure, ind) in zip(injection_pressures, fig_index):
     c_vals = ["1e-4", "1e-3", "1e-2", "1e-1", "1e0", "1e1", "1e2", "1e3", "1e4"]
     solvers_ticks = ["GNM", "GNM-RM", "IRM"]
     heatmap(data=itr_list, vmin=1, vmax=100, xticks=c_vals, yticks=solvers_ticks,
-            xlabel="c-parameter [GPa/m]", file_name=f"Fig4{ind}", title=f"Injection pressure {20 + pressure/1e6} MPa, " + r"$\psi$=5 degrees")
+            xlabel="c-parameter [GPa/m]", file_name=f"Fig3{ind}", title=f"Injection pressure {20 + pressure/1e6} MPa, " + r"$\psi$=5 degrees")
     itr_list = []
 
 
@@ -146,6 +146,6 @@ for (model, param, ind, dil) in zip(models, params, fig_index, dilation_angles):
     c_vals = ["1e-4", "1e-3", "1e-2", "1e-1", "1e0", "1e1", "1e2", "1e3", "1e4"]
     solvers_ticks = ["GNM", "GNM-RM", "IRM"]
     heatmap(data=itr_list, vmin=1, vmax=100, xticks=c_vals, yticks=solvers_ticks,
-            xlabel="c-parameter [GPa/m]", file_name=f"Fig4{ind}", 
+            xlabel="c-parameter [GPa/m]", file_name=f"Fig3{ind}", 
             title="Injection pressure 30 MPa, " + r"$\psi$=" + f"{dil} degrees")
     itr_list = []
