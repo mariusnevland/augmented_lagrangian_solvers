@@ -86,7 +86,7 @@ class ConstrainedPressureEquation:
  
      def mass_balance_equation(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
          eq = self.pressure(subdomains) - pp.ad.Scalar(self.units.convert_units(2e7, "Pa"))
-         eq.set_name("new mass balance")
+         eq.set_name("mass_balance_equation")
          return eq
     
 
@@ -150,7 +150,7 @@ class PressureConstraintWell:
             + pp.ad.DenseArray(indicator) * constrained_eq
         )
         eq_with_pressure_constraint.set_name(
-            "mass_balance_equation_with_constrained_pressure"
+            "mass_balance_equation"
         )
  
         return eq_with_pressure_constraint
