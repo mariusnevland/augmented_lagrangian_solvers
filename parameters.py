@@ -33,13 +33,14 @@ solid_smaller_dilation = pp.SolidConstants(**solid_values_smaller_dilation)
 solid_larger_dilation = pp.SolidConstants(**solid_values_larger_dilation)
 nl_convergence_tol = 1e-8
 nl_convergence_tol_res = 1e-8
+max_iterations = 100
 units = pp.Units(kg=1e9, m=1)
 material_constants = {"solid": solid, "fluid": fluid, "numerical": numerical}
 material_constants_smaller_dilation = {**material_constants, "solid": solid_smaller_dilation}
 material_constants_larger_dilation = {**material_constants, "solid": solid_larger_dilation}
 
 params_initialization = {
-    "max_iterations": 100,
+    "max_iterations": max_iterations,
     "material_constants": material_constants,
     "time_manager": pp.TimeManager(
         schedule=[0, 0.1 * pp.DAY], dt_init=0.1 * pp.DAY, constant_dt=True
@@ -56,10 +57,15 @@ params_initialization_smaller_dilation = {**params_initialization, "material_con
 params_initialization_larger_dilation = {**params_initialization, "material_constants": material_constants_larger_dilation}
 
 params_injection_2D = {
-    "max_iterations": 100,
+    "max_iterations": max_iterations,
     "material_constants": material_constants,
     "time_manager": pp.TimeManager(
-        schedule=[0, 0.1 * pp.DAY], dt_init=0.1 * pp.DAY, constant_dt=True
+        schedule=[0, 0.1 * pp.DAY], dt_init=0.1 * pp.DAY, 
+        dt_min_max=(1e-6 * pp.DAY, 0.1 * pp.DAY),
+        iter_max=max_iterations,
+        iter_optimal_range=(4, 20),
+        constant_dt=False, recomp_factor=0.5,
+        recomp_max=10, print_info=True
     ),
     "units": units,
     "nl_convergence_tol": nl_convergence_tol,
@@ -71,7 +77,7 @@ params_injection_2D = {
 
 
 params_grid_refinement_2D = {
-    "max_iterations": 100,
+    "max_iterations": max_iterations,
     "material_constants": material_constants,
     "time_manager": pp.TimeManager(
         schedule=[0, 1 * pp.DAY], dt_init=0.1 * pp.DAY, constant_dt=True
@@ -88,7 +94,7 @@ params_grid_refinement_smaller_dilation = {**params_grid_refinement_2D, "materia
 
 
 params_injection_3D = {
-    "max_iterations": 100,
+    "max_iterations": max_iterations,
     "material_constants": material_constants,
     "time_manager": pp.TimeManager(
         schedule=[0, 0.1 * pp.DAY], dt_init=0.1 * pp.DAY, constant_dt=True
@@ -103,7 +109,7 @@ params_injection_3D = {
 
 
 params_initialize_pressure_3D = {
-    "max_iterations": 100,
+    "max_iterations": max_iterations,
     "material_constants": material_constants,
     "time_manager": pp.TimeManager(
         schedule=[0, 50 * pp.DAY], dt_init=50 * pp.DAY, constant_dt=True
