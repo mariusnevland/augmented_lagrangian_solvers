@@ -19,6 +19,9 @@ class ImplicitReturnMap:
     total_itr = 0  # Counter for the total number of nonlinear iterations 
                    # (i.e. number of linear systems solved)
 
+    wasted_itr = 0  # Counter for the number of "wasted" iterations, i.e. iterations where the
+                    # nonlinear solver did not converge.
+
     outer_loop_itr = 0
 
     c_n: float  # Regularization parameter
@@ -28,6 +31,10 @@ class ImplicitReturnMap:
     t_n_prev: np.ndarray  # Normal traction from previous step of the outer loop.
 
     t_t_prev: np.ndarray  # Tangential traction from previous step of the outer loop.
+
+    inner_loop_fail: bool = False  # Indicator for inner loop failure.
+
+    first_itr_stats: int  # Number of iterations to solve the first system in the inner loop. 
 
     def contact_mechanics_normal_constant(self, subdomains: list[pp.Grid]) -> pp.ad.Scalar:
 
@@ -232,11 +239,19 @@ class ImplicitReturnMap:
         # Keep track of the total number of nonlinear iterations
         # In other words, the total number of linear systems solved.
         self.total_itr += self.nonlinear_solver_statistics.num_iteration
+        if self.outer_loop_itr == 0:
+            self.first_itr_stats = self.nonlinear_solver_statistics.num_iteration
         self.outer_loop_itr += 1
 
     def after_nonlinear_failure(self) -> None:
         """Method to be called if the inner Newton loop fails to converge."""
-        raise ValueError("Inner Newton loop failed to converge.")
+        if self.time_manager.is_constant:
+            # We cannot decrease the constant time step.
+            raise ValueError("Inner Newton loop did not converge.")
+        else:
+            self.total_itr += self.nonlinear_solver_statistics.num_iteration
+            self.wasted_itr += self.nonlinear_solver_statistics.num_iteration
+            self.inner_loop_fail = True
 
     def after_outer_loop_convergence(self, iteration_counter: int) -> None:
         """Method to be called after the return map algorithm has converged.
@@ -246,10 +261,14 @@ class ImplicitReturnMap:
         next time step when this method is called."""
 
         solution = self.equation_system.get_variable_values(iterate_index=0)
-        self.equation_system.shift_time_step_values()
-        self.equation_system.set_variable_values(
-            values=solution, time_step_index=0, additive=False
-        )
+        # Update the time step magnitude if the dynamic scheme is used.
+        # The step size is determined based on the number of iterations
+        # needed to solve the first system in the inner loop.
+        if not self.time_manager.is_constant:
+            self.time_manager.compute_time_step(
+                iterations=self.first_itr_stats
+            )
+        self.update_solution(solution)
         self.convergence_status = True
         self.save_data_time_step()
         # Reset numerical constants, in case an update strategy was used.
@@ -261,7 +280,18 @@ class ImplicitReturnMap:
     def after_outer_loop_failure(self) -> None:
         """Method to be called if the outer loop fails to converge."""
         self.save_data_time_step()
-        raise ValueError("Outer loop iterations did not converge.")
+        if self.time_manager.is_constant:
+            raise ValueError("Outer loop iterations did not converge.")
+        else:         
+            # Update the time step magnitude if the dynamic scheme is used.
+            # Note: It will also raise a ValueError if the minimal time step is reached.
+            self.time_manager.compute_time_step(recompute_solution=True)
+
+            # Reset the iterate values. This ensures that the initial guess for an
+            # unknown time step equals the known time step.
+            prev_solution = self.equation_system.get_variable_values(time_step_index=0)
+            self.equation_system.set_variable_values(prev_solution, iterate_index=0)
+            self.inner_loop_fail = False  # Reset inner loop failure indicator.
 
 
 def run_implicit_return_map_model(model, params: dict) -> None:
@@ -277,8 +307,7 @@ def run_implicit_return_map_model(model, params: dict) -> None:
 
     def return_map_algorithm() -> None:
         converged = False
-        max_itr_outer = 150  # Maximum number of allowed outer loop iterations
-        total_itr = 0
+        max_itr_outer = params["max_outer_iterations"]  # Maximum number of allowed outer loop iterations
         while not converged and model.outer_loop_itr <= max_itr_outer:     
             # One iteration of the outer loop consists of replacing the complementarity
             # functions with regularized versions, and solving the resulting nonlinear
@@ -286,7 +315,8 @@ def run_implicit_return_map_model(model, params: dict) -> None:
             # The regularizations depend on the solution at the previous outer iteration.
             val_prev = model.equation_system.get_variable_values(iterate_index=0)
             solver.solve(model)  # Solve regularized nonlinear system.
-            total_itr += model.nonlinear_solver_statistics.num_iteration
+            if model.inner_loop_fail:
+                break  # Exit outer loop if inner loop failed.
             val_current = model.equation_system.get_variable_values(iterate_index=0)
 
             # Assemble residual of the original, non-regularized contact equations,
@@ -300,18 +330,26 @@ def run_implicit_return_map_model(model, params: dict) -> None:
             res_tang = tang_eqn.value(model.equation_system,state=val_current)
             res_norm = norm_eqn.value(model.equation_system,state=val_current)
             residual_contact = np.concatenate((res_norm, res_tang))
+            # Residual of the remaining equations.
+            residual_non_contact = model.equation_system.assemble(
+                equations=["mass_balance_equation",
+                           "momentum_balance_equation",
+                           "interface_force_balance_equation",
+                           "interface_darcy_flux_equation"],
+                evaluate_jacobian=False, state=val_current
+            )
+            residual_total = np.concatenate((residual_contact, residual_non_contact))
             outer_increment = val_current - val_prev
             # Convergence check. We reuse the tolerances for the standard
             # Newton solver.
             outer_increment_norm = model.compute_nonlinear_increment_norm(outer_increment)
-            residual_contact_norm = model.compute_residual_norm(residual_contact, residual_contact)
+            residual_norm = model.compute_residual_norm(residual_total, residual_total)
             # First check if the outer loop diverged to infinity.
-            div_tol = 1e8
-            if residual_contact_norm > div_tol:
+            if residual_norm > params["nl_divergence_tol"]:
                 break
             tol_outer_increment = params["nl_convergence_tol"]
-            tol_residual_contact = params["nl_convergence_tol_res"]
-            if outer_increment_norm < tol_outer_increment and residual_contact_norm < tol_residual_contact:
+            tol_residual = params["nl_convergence_tol_res"]
+            if outer_increment_norm < tol_outer_increment and residual_norm < tol_residual:
                 converged = True
 
         if converged:
