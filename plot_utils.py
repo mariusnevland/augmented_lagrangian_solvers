@@ -153,7 +153,7 @@ def run_and_report_single(Model,
                 plt.plot(model.num_glide, color="blue")
         except:
             res = model.nonlinear_solver_statistics.residual_norms
-            if res[-1] > 1e5 or np.isnan(np.array(res[-1])):
+            if res[-1] > params["nl_divergence_tol"] or np.isnan(np.array(res[-1])):
                 itr = 500
             else:
                 itr = 0
@@ -169,9 +169,9 @@ def run_and_report_single(Model,
             itr = model.total_itr
         except:
             res = model.nonlinear_solver_statistics.residual_norms
-            if res[-1] > 1e5 or np.isnan(np.array(res[-1])):
+            if res[-1] > params["nl_divergence_tol"] or np.isnan(np.array(res[-1])):
                 itr = 500
-            elif model.outer_loop_itr > 150:
+            elif model.outer_loop_itr > params["max_outer_iterations"]:
                 itr = -1
             else:
                 itr = 0
@@ -185,10 +185,19 @@ def run_and_report_single(Model,
 
 
 # Sum number of nonlinear iterations over several time steps.
+# Note: This mixin is not used by IRM, as this counter is already integrated into that method.
 class SumTimeSteps:
 
     total_itr = 0  # Total number of iterations across all time steps.
 
+    wasted_itr = 0  # Number of "wasted" iterations, i.e. iterations where the nonlinear solver
+                    # did not converge, and the solution was recomputed with a smaller time step.
+
     def after_nonlinear_convergence(self) -> None:
         super().after_nonlinear_convergence()
         self.total_itr += self.nonlinear_solver_statistics.num_iteration
+
+    def after_nonlinear_failure(self) -> None:
+        super().after_nonlinear_failure()
+        self.total_itr += self.nonlinear_solver_statistics.num_iteration
+        self.wasted_itr += self.nonlinear_solver_statistics.num_iteration
