@@ -1,6 +1,8 @@
 import numpy as np
 import porepy as pp
 from typing import Literal
+from porepy.models.constitutive_laws import CubicLawPermeability
+Scalar = pp.ad.Scalar
     
 
 class FractureNetwork2D:
@@ -225,3 +227,26 @@ class PressureConstraintWellGrid:
         )
  
         return eq_with_pressure_constraint
+
+
+class ConstantAperture:
+    # Use a constant aperture for the fractures.
+    def aperture(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
+        return pp.constitutive_laws.DimensionReduction.aperture(self, subdomains)
+    
+
+class ConstantCubicLawPermeability(CubicLawPermeability):
+    """Use the cubic law for the normal and tangential permeabilities, but using the residual aperture."""
+
+    def cubic_law_permeability(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
+        aperture = pp.constitutive_laws.DimensionReduction.aperture(self, subdomains)
+        permeability = (aperture ** Scalar(2)) / Scalar(12)
+        return self.isotropic_second_order_tensor(subdomains, permeability)
+
+    def normal_permeability(self, interfaces: list[pp.MortarGrid]) -> pp.ad.Operator:
+        subdomains = self.interfaces_to_subdomains(interfaces)
+        projection = pp.ad.MortarProjections(self.mdg, subdomains, interfaces, dim=1)
+        aperture = pp.constitutive_laws.DimensionReduction.aperture(self, subdomains)
+        permeability = (aperture ** Scalar(2)) / Scalar(12)
+        normal_perm = projection.secondary_to_mortar_avg() @ permeability
+        return normal_perm
