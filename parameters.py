@@ -33,7 +33,9 @@ solid_smaller_dilation = pp.SolidConstants(**solid_values_smaller_dilation)
 solid_larger_dilation = pp.SolidConstants(**solid_values_larger_dilation)
 nl_convergence_tol = 1e-8
 nl_convergence_tol_res = 1e-8
-max_iterations = 100
+nl_divergence_tol = 1e5
+max_iterations = 50
+max_outer_iterations = 50
 units = pp.Units(kg=1e9, m=1)
 material_constants = {"solid": solid, "fluid": fluid, "numerical": numerical}
 material_constants_smaller_dilation = {**material_constants, "solid": solid_smaller_dilation}
@@ -48,6 +50,7 @@ params_initialization = {
     "units": units,
     "nl_convergence_tol": nl_convergence_tol,
     "nl_convergence_tol_res": nl_convergence_tol_res,
+    "nl_divergence_tol": nl_divergence_tol,
     "linear_solver": "scipy_sparse",
     "folder_name": "results/initialization",
     "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
@@ -58,6 +61,7 @@ params_initialization_larger_dilation = {**params_initialization, "material_cons
 
 params_injection_2D = {
     "max_iterations": max_iterations,
+    "max_outer_iterations": max_outer_iterations,
     "material_constants": material_constants,
     "time_manager": pp.TimeManager(
         schedule=[0, 0.1 * pp.DAY], dt_init=0.1 * pp.DAY, 
@@ -65,11 +69,12 @@ params_injection_2D = {
         iter_max=max_iterations,
         iter_optimal_range=(4, 20),
         constant_dt=False, recomp_factor=0.5,
-        recomp_max=10, print_info=True
+        recomp_max=3, print_info=True
     ),
     "units": units,
     "nl_convergence_tol": nl_convergence_tol,
     "nl_convergence_tol_res": nl_convergence_tol_res,
+    "nl_divergence_tol": nl_divergence_tol,
     "linear_solver": "scipy_sparse",
     "folder_name": "results/injection_2D",
     "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
