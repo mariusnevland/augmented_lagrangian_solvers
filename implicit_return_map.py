@@ -22,7 +22,9 @@ class ImplicitReturnMap:
     wasted_itr = 0  # Counter for the number of "wasted" iterations, i.e. iterations where the
                     # nonlinear solver did not converge.
 
-    outer_loop_itr = 0
+    outer_loop_itr = 0  # Outer loop iteration counter, reset at each time step.
+
+    accumulated_outer_loop_itr = 0  # Accumulated outer loop iteration counter over all time steps.
 
     c_n: float  # Regularization parameter
 
@@ -34,13 +36,13 @@ class ImplicitReturnMap:
 
     inner_loop_fail: bool = False  # Indicator for inner loop failure.
 
-    first_itr_stats: int  # Number of iterations to solve the first system in the inner loop. 
+    first_itr_stats: int  # Number of iterations to solve the first system in the inner loop.
 
-    def contact_mechanics_normal_constant(self, subdomains: list[pp.Grid]) -> pp.ad.Scalar:
+    def contact_mechanics_normal_constant_irm(self, subdomains: list[pp.Grid]) -> pp.ad.Scalar:
 
         return pp.ad.Scalar(self.c_n, name="contact_mechanics_normal_constant")
 
-    def contact_mechanics_tangential_constant(self, subdomains: list[pp.Grid]) -> pp.ad.Scalar:
+    def contact_mechanics_tangential_constant_irm(self, subdomains: list[pp.Grid]) -> pp.ad.Scalar:
 
         return pp.ad.Scalar(self.c_t, name="contact_mechanics_tangential_constant")
     
@@ -64,7 +66,7 @@ class ImplicitReturnMap:
         # The complimentarity condition
         equation: pp.ad.Operator = t_n + max_function(
             pp.ad.Scalar(-1.0) * t_n_prev_ad
-            - self.contact_mechanics_normal_constant(subdomains)
+            - self.contact_mechanics_normal_constant_irm(subdomains)
             * (u_n - self.fracture_gap(subdomains)),
             zeros_frac,
         )
@@ -95,7 +97,7 @@ class ImplicitReturnMap:
         f_max = pp.ad.Function(self.maximum, "max_function")
         f_norm = pp.ad.Function(partial(pp.ad.l2_norm, self.nd - 1), "norm_function")
 
-        c_num_as_scalar = self.contact_mechanics_tangential_constant(subdomains)
+        c_num_as_scalar = self.contact_mechanics_tangential_constant_irm(subdomains)
         t_t_prev_ad = pp.ad.DenseArray(self.t_t_prev, "t_t_prev")
         tangential_sum = t_t_prev_ad + (scalar_to_tangential @ c_num_as_scalar) * u_t_increment
 
@@ -193,8 +195,8 @@ class ImplicitReturnMap:
     def initial_condition(self) -> None:
         super().initial_condition()
 
-        self.c_n_init = float(1e0)
-        self.c_t_init = float(1e0)
+        self.c_n_init = self.contact_mechanics_normal_constant(self.mdg.subdomains()).value(self.equation_system)
+        self.c_t_init = self.contact_mechanics_tangential_constant(self.mdg.subdomains()).value(self.equation_system)
         self.c_n = self.c_n_init  # Initial numerical constant for the normal equation
         self.c_t = (
             self.c_t_init
@@ -214,9 +216,17 @@ class ImplicitReturnMap:
         Note also that we do not proceed to the next time step after nonlinear convergence,
         as we also require the outer loop to converge.
         """
-        # Update numerical constants. Lots of options for how to update.
-        self.c_n += 0
-        self.c_t += 0
+        # Update numerical constants before proceeding to the next outer iteration.
+        if self.params.get("irm_update_strategy", False):
+            if self.c_n >= 1e3:
+                self.c_n += 0
+                self.c_t += 0
+            else:
+                self.c_n *= 10
+                self.c_t *= 10
+        else:
+            self.c_n += 0
+            self.c_t += 0
 
         # Update normal and tangential tractions, to be used as constants in the next
         # outer iteration.
@@ -242,6 +252,7 @@ class ImplicitReturnMap:
         if self.outer_loop_itr == 0:
             self.first_itr_stats = self.nonlinear_solver_statistics.num_iteration
         self.outer_loop_itr += 1
+        self.accumulated_outer_loop_itr += 1
 
     def after_nonlinear_failure(self) -> None:
         """Method to be called if the inner Newton loop fails to converge."""
@@ -276,11 +287,12 @@ class ImplicitReturnMap:
         self.c_t = self.c_t_init
         # We do not reset t_n_prev and t_t_prev, as we want the initial
         # guess at the next time step to be the solution at the previous time step.
+        self.outer_loop_itr = 0  # Reset outer loop counter for next time step.
 
     def after_outer_loop_failure(self) -> None:
         """Method to be called if the outer loop fails to converge."""
         self.save_data_time_step()
-        if self.time_manager.is_constant:
+        if self.time_manager.is_constant or not self.inner_loop_fail:
             raise ValueError("Outer loop iterations did not converge.")
         else:         
             # Update the time step magnitude if the dynamic scheme is used.
@@ -307,7 +319,7 @@ def run_implicit_return_map_model(model, params: dict) -> None:
 
     def return_map_algorithm() -> None:
         converged = False
-        max_itr_outer = params["max_outer_iterations"]  # Maximum number of allowed outer loop iterations
+        max_itr_outer = params["max_outer_iterations"]  # Maximum number of allowed outer loop iterations per time step.
         while not converged and model.outer_loop_itr <= max_itr_outer:     
             # One iteration of the outer loop consists of replacing the complementarity
             # functions with regularized versions, and solving the resulting nonlinear
@@ -344,6 +356,7 @@ def run_implicit_return_map_model(model, params: dict) -> None:
             # Newton solver.
             outer_increment_norm = model.compute_nonlinear_increment_norm(outer_increment)
             residual_norm = model.compute_residual_norm(residual_total, residual_total)
+            print(residual_norm)
             # First check if the outer loop diverged to infinity.
             if residual_norm > params["nl_divergence_tol"]:
                 break
