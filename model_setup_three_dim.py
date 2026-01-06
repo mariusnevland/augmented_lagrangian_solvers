@@ -174,7 +174,7 @@ class HydroStaticPressureInitialization(HydrostaticPressure):
         )
         constrained_eq = self.pressure(subdomains) - hydrostatic_pressure
         constrained_eq.set_name("mass_balance_equation_with_constrained_pressure")
-        constrained_eq.set_name("new mass balance")
+        constrained_eq.set_name("mass_balance_equation")
         return constrained_eq
     
 
@@ -245,7 +245,7 @@ class PressureConstraintWell3D:
             + pp.ad.DenseArray(indicator) * constrained_eq
         )
         eq_with_pressure_constraint.set_name(
-            "mass_balance_equation_with_constrained_pressure"
+            "mass_balance_equation"
         )
 
         return eq_with_pressure_constraint
