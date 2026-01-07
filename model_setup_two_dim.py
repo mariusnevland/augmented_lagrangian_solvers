@@ -103,9 +103,7 @@ class PressureConstraintWell:
         # Update injection pressure. We assume the pressure to increase linearly with time
         # from 20 MPa to 20 MPa + injection_overpressure.
         injection_overpressure = self.params.get("injection_overpressure", 0)
-        time = self.time_manager.time
-        final_time = self.time_manager.schedule[-1]
-        current_injection_pressure = self.units.convert_units(2e7, "Pa") + self.units.convert_units(time * (injection_overpressure / final_time), "Pa")
+        current_injection_pressure = self.units.convert_units(2e7, "Pa") + self.units.convert_units(injection_overpressure, "Pa")
         for sd in self.mdg.subdomains(return_data=False):
             pp.set_solution_values(
                 name="current_injection_pressure",
