@@ -1,5 +1,6 @@
 import numpy as np
 import porepy as pp
+import pp_solvers
 
 solid_values = {"biot_coefficient": 0.8,
                 "density": 2.7e3,
@@ -34,12 +35,30 @@ solid_larger_dilation = pp.SolidConstants(**solid_values_larger_dilation)
 nl_convergence_tol = 1e-8
 nl_convergence_tol_res = 1e-8
 nl_divergence_tol = 1e5
-max_iterations = 50
+max_iterations = 30
 max_outer_iterations = 50
 units = pp.Units(kg=1e9, m=1)
 material_constants = {"solid": solid, "fluid": fluid, "numerical": numerical}
 material_constants_smaller_dilation = {**material_constants, "solid": solid_smaller_dilation}
 material_constants_larger_dilation = {**material_constants, "solid": solid_larger_dilation}
+
+linear_solver = {
+        "preconditioner_factory": pp_solvers.hm_factory,
+        "options": {"ksp_max_it": 300, "ksp_rtol": 1e-11,  "ksp_atol": 1e-11, "ksp_gmres_restart": 300, 
+                    "pc_hypre_boomeramg_strong_threshold": 0.9, "mechanics": {
+                        "pc_hypre_boomeramg_smooth_type": "ILU", 
+        }},
+    }
+
+time_manager_injection = pp.TimeManager(
+        schedule=[0, 1 * pp.HOUR], dt_init=1 * pp.SECOND, 
+        dt_min_max=(0.1 * pp.SECOND, 1 * pp.DAY),
+        iter_max=max_iterations,
+        iter_optimal_range=(4, 20),
+        iter_relax_factors=(0.7, 3.0),
+        constant_dt=False, recomp_factor=0.5,
+        recomp_max=10, print_info=True
+    ),
 
 params_initialization = {
     "max_iterations": max_iterations,
@@ -51,7 +70,7 @@ params_initialization = {
     "nl_convergence_tol": nl_convergence_tol,
     "nl_convergence_tol_res": nl_convergence_tol_res,
     "nl_divergence_tol": nl_divergence_tol,
-    "linear_solver": "scipy_sparse",
+    "linear_solver": linear_solver,
     "folder_name": "results/initialization",
     "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
 }
@@ -63,19 +82,12 @@ params_injection_2D = {
     "max_iterations": max_iterations,
     "max_outer_iterations": max_outer_iterations,
     "material_constants": material_constants,
-    "time_manager": pp.TimeManager(
-        schedule=[0, 0.1 * pp.DAY], dt_init=0.1 * pp.DAY, 
-        dt_min_max=(1e-6 * pp.DAY, 0.1 * pp.DAY),
-        iter_max=max_iterations,
-        iter_optimal_range=(4, 20),
-        constant_dt=False, recomp_factor=0.5,
-        recomp_max=3, print_info=True
-    ),
+    "time_manager": time_manager_injection,
     "units": units,
     "nl_convergence_tol": nl_convergence_tol,
     "nl_convergence_tol_res": nl_convergence_tol_res,
     "nl_divergence_tol": nl_divergence_tol,
-    "linear_solver": "scipy_sparse",
+    "linear_solver": linear_solver,
     "folder_name": "results/injection_2D",
     "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
 }
@@ -84,13 +96,11 @@ params_injection_2D = {
 params_grid_refinement_2D = {
     "max_iterations": max_iterations,
     "material_constants": material_constants,
-    "time_manager": pp.TimeManager(
-        schedule=[0, 1 * pp.DAY], dt_init=0.1 * pp.DAY, constant_dt=True
-    ),
+    "time_manager": time_manager_injection,
     "units": units,
     "nl_convergence_tol": nl_convergence_tol,
     "nl_convergence_tol_res": nl_convergence_tol_res,
-    "linear_solver": "scipy_sparse",
+    "linear_solver": linear_solver,
     "folder_name": "results/params_grid_refinement_2D",
     "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
 }
@@ -101,13 +111,12 @@ params_grid_refinement_smaller_dilation = {**params_grid_refinement_2D, "materia
 params_injection_3D = {
     "max_iterations": max_iterations,
     "material_constants": material_constants,
-    "time_manager": pp.TimeManager(
-        schedule=[0, 0.1 * pp.DAY], dt_init=0.1 * pp.DAY, constant_dt=True
-    ),
+    "time_manager": time_manager_injection,
     "units": units,
     "nl_convergence_tol": nl_convergence_tol,
     "nl_convergence_tol_res": nl_convergence_tol_res,
-    "linear_solver": "scipy_sparse",
+    "nl_divergence_tol": nl_divergence_tol,
+    "linear_solver": linear_solver,
     "folder_name": "results/injection_3D",
     "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
 }
@@ -122,7 +131,7 @@ params_initialize_pressure_3D = {
     "units": units,
     "nl_convergence_tol": nl_convergence_tol,
     "nl_convergence_tol_res": nl_convergence_tol_res,
-    "linear_solver": "scipy_sparse",
+    "linear_solver": linear_solver,
     "folder_name": "results/init_pressure_3D",
     "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
 }
