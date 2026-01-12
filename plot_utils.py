@@ -73,7 +73,7 @@ def heatmap(data: np.ndarray,
 def run_and_report_single(Model, 
                           params: dict,
                           c_value: float, 
-                          solver: str) -> int:
+                          solver: str):
     
     # Run a simulation with a given nonlinear solver, and report on the number of
     # nonlinear iterations.
@@ -136,9 +136,12 @@ def run_and_report_single(Model,
 
     model = Simulation(params)
     if solver in {"GNM", "GNM-RM", "Delayed_GNM-RM"}:
+        outer_itr = 0
         try:
             pp.run_time_dependent_model(model, params)
             itr = model.total_itr
+            itr_time_step_list = model.itr_time_step
+            itr_linear = sum(model.nonlinear_solver_statistics.num_krylov_iters)
             res = model.nonlinear_solver_statistics.residual_norms
             if model.params.get("make_fig4a", False):
                 plt.semilogy(np.arange(0, len(res)), res, color="blue")
@@ -151,12 +154,15 @@ def run_and_report_single(Model,
                 plt.plot(model.num_open, color="orange")
                 plt.plot(model.num_stick, color="red")
                 plt.plot(model.num_glide, color="blue")
-        except:
+        except Exception as e:
+            print(e)
+            itr_linear = sum(model.nonlinear_solver_statistics.num_krylov_iters)
+            itr_time_step_list = model.itr_time_step
             res = model.nonlinear_solver_statistics.residual_norms
             if res[-1] > params["nl_divergence_tol"] or np.isnan(np.array(res[-1])):
-                itr = 500
+                itr = "Div"
             else:
-                itr = 0
+                itr = "NC"
             if model.params.get("make_fig4a", False):
                 plt.semilogy(np.arange(0, len(res)), res, color="red")
             elif model.params.get("make_fig5", False):
@@ -167,37 +173,44 @@ def run_and_report_single(Model,
         try:
             run_implicit_return_map_model(model, params)
             itr = model.total_itr
+            itr_linear = sum(model.nonlinear_solver_statistics.num_krylov_iters)
+            itr_time_step_list = model.itr_time_step
+            outer_itr = model.accumulated_outer_loop_itr
         except:
             res = model.nonlinear_solver_statistics.residual_norms
+            itr_time_step_list = model.itr_time_step
+            itr_linear = sum(model.nonlinear_solver_statistics.num_krylov_iters)
+            outer_itr = model.accumulated_outer_loop_itr
             if res[-1] > params["nl_divergence_tol"] or np.isnan(np.array(res[-1])):
-                itr = 500
+                itr = "Div"
             elif model.outer_loop_itr > params["max_outer_iterations"]:
-                itr = -1
+                itr = "NCO"
             else:
-                itr = 0
+                itr = "NC"
             if model.params.get("make_fig4a", False):
                 plt.semilogy(np.arange(0, len(res)), res, color="orange")
             elif model.params.get("make_fig5", False):
                 plt.plot(model.num_open, color="orange")
                 plt.plot(model.num_stick, color="red")
                 plt.plot(model.num_glide, color="blue")
-    return itr
+    return [itr, itr_time_step_list, itr_linear]
 
 
 # Sum number of nonlinear iterations over several time steps.
 # Note: This mixin is not used by IRM, as this counter is already integrated into that method.
 class SumTimeSteps:
 
-    total_itr = 0  # Total number of iterations across all time steps.
-
-    wasted_itr = 0  # Number of "wasted" iterations, i.e. iterations where the nonlinear solver
-                    # did not converge, and the solution was recomputed with a smaller time step.
+    def __init__(self, params):
+        super().__init__(params)
+        self.total_itr = 0
+        self.itr_time_step = []
 
     def after_nonlinear_convergence(self) -> None:
         super().after_nonlinear_convergence()
         self.total_itr += self.nonlinear_solver_statistics.num_iteration
+        self.itr_time_step.append(self.nonlinear_solver_statistics.num_iteration)
 
     def after_nonlinear_failure(self) -> None:
         super().after_nonlinear_failure()
         self.total_itr += self.nonlinear_solver_statistics.num_iteration
-        self.wasted_itr += self.nonlinear_solver_statistics.num_iteration
+        self.itr_time_step.append(self.nonlinear_solver_statistics.num_iteration)
