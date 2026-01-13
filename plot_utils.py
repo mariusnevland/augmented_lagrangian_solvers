@@ -111,6 +111,7 @@ def run_and_report_single(Model,
     elif solver == "IRM":
 
         class Simulation(ContactMechanicsConstant,
+                         SumTimeSteps,
                          ImplicitReturnMap,
                          Model):
             pass
@@ -197,7 +198,6 @@ def run_and_report_single(Model,
 
 
 # Sum number of nonlinear iterations over several time steps.
-# Note: This mixin is not used by IRM, as this counter is already integrated into that method.
 class SumTimeSteps:
 
     def __init__(self, params):
