@@ -9,65 +9,43 @@ from matplotlib.colors import LinearSegmentedColormap
 
 """Various utility functions for plotting results."""
 
-# Function to truncate colormap
-def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=256):
-    new_cmap = LinearSegmentedColormap.from_list(
-        f"trunc({cmap.name},{minval:.2f},{maxval:.2f})",
-        cmap(np.linspace(minval, maxval, n))
-    )
-    return new_cmap
-
-
-def heatmap(data: np.ndarray,
-            vmin: int,
-            vmax: int,
-            xticks: list,
-            yticks: list,
-            xlabel: str,
-            ylabel: str = None,
-            file_name: str = None,
-            title: str = None):
-    
-    """Create a heatmap visualizing the number of iterations."""
-    df = pd.DataFrame(data)
-    df = df.astype(int)
-    annot = df.astype(str).replace("0", "NC").replace("500", "Div").replace("-1", "NCO")
-    try:
-        # Trick to avoid needing to display a larger color map range due to outliers.
-        if annot[4][2] == "100":
-            annot[4][2] = "291"
-        elif annot[3][2] == "100":
-            annot[3][2] = "360"
-    except:
-        pass
-    plt.figure(figsize=(10,6))
-    # Load base colormap
-    base_cmap = plt.get_cmap('YlOrRd')
-    # Truncate it to avoid the darkest red
-    trunc_cmap = truncate_colormap(base_cmap, 0.0, 0.85)  # 0.85 avoids deep reds
-    cmap = trunc_cmap
-    # Non-convergent cases get assigned a grey color.
-    cmap.set_under('#908D8D')
-    cmap.set_over('#696969')
-    mesh = sns.heatmap(df, linewidths=0.5, xticklabels=xticks,
-                   yticklabels=yticks,
-                   cmap=cmap,
-                   linecolor="black",
-                   annot=annot,
-                   fmt="",
-                   vmin=vmin,
-                   vmax=vmax,
-                   annot_kws={"size": 16, "weight": "bold", "color": "black"})
-    mesh.set(xlabel=xlabel, ylabel=ylabel)
-    cbar = mesh.collections[0].colorbar
-    cbar.set_label("Number of iterations", fontsize=16)
-    cbar.ax.tick_params(labelsize=14)
-    plt.xlabel(xlabel, fontsize=16)
-    plt.gca().tick_params(axis="y", rotation=0)
-    plt.xticks(fontsize=16)
-    plt.yticks(fontsize=16)
-    plt.title(title, fontsize=20)
-    plt.savefig(file_name, dpi=300, bbox_inches="tight", transparent=True)
+def bar_chart(itr_time_step_list, lin_list, ymin, ymax, num_c_values, labels, file_name):
+    width = 0.1
+    indices = ['A', 'B', 'C']
+    positions = [i * 0.5 for i in range(num_c_values)]
+    positions2 = [-1, 0, 1]
+    colors = ['#1f77b4', '#9f1b1b', '#2ca02c']
+    _, ax1 = plt.subplots()
+    ax1.set_ylim(ymin, ymax)
+    _, ymax = ax1.get_ylim()
+    ax2 = ax1.twinx()
+    for (i, pos) in enumerate(positions):
+        df = pd.DataFrame(itr_time_step_list[i], index=indices)
+        for (ind, col, lin, foo) in zip(indices, colors, lin_list[i], positions2):
+            bottom = 0
+            for value in df.loc[ind].dropna():
+                if value==31:
+                    bar = ax1.bar(pos + foo * width, value, width, align='center', bottom=bottom, edgecolor='black', hatch='/', linewidth=0.5, color=col)
+                else:
+                    bar = ax1.bar(pos + foo * width, value, width, align='center', bottom=bottom, edgecolor='black', linewidth=0.5, color=col)
+                bottom += value
+                if bottom > ymax:
+                    rect = bar[0]
+                    xmid = rect.get_x() + rect.get_width() / 2
+                    ax1.plot(xmid, ymax * 1.0, marker=(3,0,0), markersize=10, color='red')
+                    break
+            ax2.plot(pos + foo * width, lin, marker='o', color='black')
+            special_bar = plt.bar(pos + foo * width, 5, width, align='center', bottom=bottom, color='none', edgecolor='none')[0]
+            ax = plt.gca()
+            x_center = special_bar.get_x() + special_bar.get_width() / 2
+            y_center = special_bar.get_y() + special_bar.get_height() / 2
+    # Set the xtick at the center bar (positions[1]) so the tick is in the middle of the 2nd bar
+    plt.xticks(positions, labels)
+    ax1.set_xlabel("c-value [GPa/m]")
+    ax1.set_ylabel("Nonlinear iterations")
+    ax2.set_ylabel("Linear iterations")
+    plt.title("Nonlinearity: No aperture")
+    plt.savefig(file_name)
 
 
 def run_and_report_single(Model, 
@@ -206,11 +184,11 @@ class SumTimeSteps:
         self.itr_time_step = []
 
     def after_nonlinear_convergence(self) -> None:
-        super().after_nonlinear_convergence()
         self.total_itr += self.nonlinear_solver_statistics.num_iteration
         self.itr_time_step.append(self.nonlinear_solver_statistics.num_iteration)
+        super().after_nonlinear_convergence()
 
     def after_nonlinear_failure(self) -> None:
-        super().after_nonlinear_failure()
         self.total_itr += self.nonlinear_solver_statistics.num_iteration
         self.itr_time_step.append(self.nonlinear_solver_statistics.num_iteration)
+        super().after_nonlinear_failure()
