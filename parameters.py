@@ -42,23 +42,43 @@ material_constants = {"solid": solid, "fluid": fluid, "numerical": numerical}
 material_constants_smaller_dilation = {**material_constants, "solid": solid_smaller_dilation}
 material_constants_larger_dilation = {**material_constants, "solid": solid_larger_dilation}
 
-linear_solver = {
+linear_solver_2D = {
         "preconditioner_factory": pp_solvers.hm_factory,
-        "options": {"ksp_max_it": 300, "ksp_rtol": 1e-11,  "ksp_atol": 1e-11, "ksp_gmres_restart": 300, 
-                    "pc_hypre_boomeramg_strong_threshold": 0.9, "mechanics": {
-                        "pc_hypre_boomeramg_smooth_type": "ILU", 
-        }},
+        "options": {"ksp_max_it": 300, "ksp_rtol": 1e-11,  
+                    "ksp_atol": 1e-11, "ksp_gmres_restart": 300,
+                    "pc_hypre_boomeramg_strong_threshold": 0.25, 
+                    # "pc_hypre_boomeramg_num_sweps": 3,
+                    # "pc_hypre_boomeramg_ilu_drop_tol": 1e-5,
+                    # "pc_hypre_boomeramg_ilu_fill_factor": 3,
+                    "mechanics": {
+                        "pc_hypre_boomeramg_smooth_type": "ILU", "pc_hypre_boomeramg_ilu_level": 2}
+                        },
+    }
+
+
+linear_solver_3D = {
+        "preconditioner_factory": pp_solvers.hm_factory,
+        "options": {"ksp_monitor": None, "ksp_max_it": 300, "ksp_rtol": 1e-11,  
+                    "ksp_atol": 1e-11, "ksp_gmres_restart": 300,
+                    "pc_hypre_boomeramg_strong_threshold": 0.7, 
+                    # "pc_hypre_boomeramg_num_sweps": 3,
+                    # "pc_hypre_boomeramg_ilu_drop_tol": 1e-5,
+                    # "pc_hypre_boomeramg_ilu_fill_factor": 3,
+                    "mechanics": {
+                        "pc_hypre_boomeramg_smooth_type": "ILU", "pc_hypre_boomeramg_ilu_level": 0}
+                        },
     }
 
 time_manager_injection = pp.TimeManager(
-        schedule=[0, 1 * pp.HOUR], dt_init=1 * pp.SECOND, 
+        schedule=[0, 1 * pp.HOUR, 1 * pp.HOUR + 1 * pp.SECOND, 2 * pp.HOUR,
+                  2 * pp.HOUR + 1 * pp.SECOND, 3 * pp.HOUR], dt_init=1 * pp.SECOND, 
         dt_min_max=(0.1 * pp.SECOND, 1 * pp.DAY),
         iter_max=max_iterations,
         iter_optimal_range=(4, 20),
         iter_relax_factors=(0.7, 3.0),
         constant_dt=False, recomp_factor=0.5,
-        recomp_max=10, print_info=True
-    ),
+        recomp_max=6, print_info=True
+    )
 
 params_initialization = {
     "max_iterations": max_iterations,
@@ -70,7 +90,7 @@ params_initialization = {
     "nl_convergence_tol": nl_convergence_tol,
     "nl_convergence_tol_res": nl_convergence_tol_res,
     "nl_divergence_tol": nl_divergence_tol,
-    "linear_solver": linear_solver,
+    "linear_solver": linear_solver_2D,
     "folder_name": "results/initialization",
     "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
 }
@@ -87,7 +107,7 @@ params_injection_2D = {
     "nl_convergence_tol": nl_convergence_tol,
     "nl_convergence_tol_res": nl_convergence_tol_res,
     "nl_divergence_tol": nl_divergence_tol,
-    "linear_solver": linear_solver,
+    "linear_solver": linear_solver_2D,
     "folder_name": "results/injection_2D",
     "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
 }
@@ -96,11 +116,13 @@ params_injection_2D = {
 params_grid_refinement_2D = {
     "max_iterations": max_iterations,
     "material_constants": material_constants,
-    "time_manager": time_manager_injection,
+    "time_manager": pp.TimeManager(
+        schedule=[0, 10 * pp.SECOND], dt_init=1 * pp.SECOND, constant_dt=True
+    ),
     "units": units,
     "nl_convergence_tol": nl_convergence_tol,
     "nl_convergence_tol_res": nl_convergence_tol_res,
-    "linear_solver": linear_solver,
+    "linear_solver": linear_solver_2D,
     "folder_name": "results/params_grid_refinement_2D",
     "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
 }
@@ -116,7 +138,7 @@ params_injection_3D = {
     "nl_convergence_tol": nl_convergence_tol,
     "nl_convergence_tol_res": nl_convergence_tol_res,
     "nl_divergence_tol": nl_divergence_tol,
-    "linear_solver": linear_solver,
+    "linear_solver": linear_solver_3D,
     "folder_name": "results/injection_3D",
     "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
 }
@@ -131,7 +153,7 @@ params_initialize_pressure_3D = {
     "units": units,
     "nl_convergence_tol": nl_convergence_tol,
     "nl_convergence_tol_res": nl_convergence_tol_res,
-    "linear_solver": linear_solver,
+    "linear_solver": linear_solver_3D,
     "folder_name": "results/init_pressure_3D",
     "reference_variable_values": pp.ReferenceVariableValues(**reference_values),
 }
