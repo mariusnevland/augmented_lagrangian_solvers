@@ -2,49 +2,58 @@ import numpy as np
 import porepy as pp
 from newton_return_map import *
 from implicit_return_map import *
-import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
 
 """Various utility functions for plotting results."""
 
-def bar_chart(itr_time_step_list, lin_list, ymin, ymax, num_c_values, labels, file_name):
+def bar_chart(itr_time_step_list, lin_list, ymin, ymax, num_xticks, labels, file_name, 
+              title=None, grid_study=False):
     width = 0.1
     indices = ['A', 'B', 'C']
-    positions = [i * 0.5 for i in range(num_c_values)]
+    positions = [i * 0.5 for i in range(num_xticks)]
+    positions_grid = [0.5*(i + 2*offset) for i in range(num_xticks) for offset in [-width, 0, width]]
     positions2 = [-1, 0, 1]
-    colors = ['#1f77b4', '#9f1b1b', '#2ca02c']
+    colors = [["#004697", "#0481af", "#64adb5"], 
+              ["#9f1b1b", "#EA4747", "#fd8585"],
+              ['#2ca02c', "#4d9a72", "#68998D"]]
     _, ax1 = plt.subplots()
     ax1.set_ylim(ymin, ymax)
     _, ymax = ax1.get_ylim()
     ax2 = ax1.twinx()
     for (i, pos) in enumerate(positions):
         df = pd.DataFrame(itr_time_step_list[i], index=indices)
-        for (ind, col, lin, foo) in zip(indices, colors, lin_list[i], positions2):
+        for j, (ind, lin, foo) in enumerate(zip(indices, lin_list[i], positions2)):
             bottom = 0
+            color_counter = 0
             for value in df.loc[ind].dropna():
+                if value == -1:
+                    color_counter = 1
+                    continue
+                elif value == -2:
+                    color_counter = 2
+                    continue
+                color = colors[j][color_counter]
                 if value==31:
-                    bar = ax1.bar(pos + foo * width, value, width, align='center', bottom=bottom, edgecolor='black', hatch='/', linewidth=0.5, color=col)
+                    bar = ax1.bar(pos + foo * width, value, width, align='center', bottom=bottom, edgecolor='grey', hatch='/', linewidth=0.5, color=color, hatch_linewidth=10)
                 else:
-                    bar = ax1.bar(pos + foo * width, value, width, align='center', bottom=bottom, edgecolor='black', linewidth=0.5, color=col)
+                    bar = ax1.bar(pos + foo * width, value, width, align='center', bottom=bottom, edgecolor='black', linewidth=0.5, color=color)
                 bottom += value
-                if bottom > ymax:
-                    rect = bar[0]
-                    xmid = rect.get_x() + rect.get_width() / 2
-                    ax1.plot(xmid, ymax * 1.0, marker=(3,0,0), markersize=10, color='red')
-                    break
-            ax2.plot(pos + foo * width, lin, marker='o', color='black')
-            special_bar = plt.bar(pos + foo * width, 5, width, align='center', bottom=bottom, color='none', edgecolor='none')[0]
-            ax = plt.gca()
-            x_center = special_bar.get_x() + special_bar.get_width() / 2
-            y_center = special_bar.get_y() + special_bar.get_height() / 2
-    # Set the xtick at the center bar (positions[1]) so the tick is in the middle of the 2nd bar
-    plt.xticks(positions, labels)
+            if bottom > ymax:
+                rect = bar[0]
+                xmid = rect.get_x() + rect.get_width() / 2
+                ax1.plot(xmid, ymax * 1.01, marker=(3,0,0), markersize=12, color='red', clip_on=False)
+            else:
+                if not df.loc[ind].dropna().values[-1] == 31:
+                    ax2.plot(pos + foo * width, lin, marker='o', color='black')
+    if grid_study==True:
+        plt.xticks(positions_grid, labels)
+    else:
+        plt.xticks(positions, labels)
     ax1.set_xlabel("c-value [GPa/m]")
     ax1.set_ylabel("Nonlinear iterations")
     ax2.set_ylabel("Linear iterations")
-    plt.title("Nonlinearity: No aperture")
+    plt.title(title, pad=15)
     plt.savefig(file_name)
 
 
@@ -115,7 +124,6 @@ def run_and_report_single(Model,
 
     model = Simulation(params)
     if solver in {"GNM", "GNM-RM", "Delayed_GNM-RM"}:
-        outer_itr = 0
         try:
             pp.run_time_dependent_model(model, params)
             itr = model.total_itr
@@ -154,12 +162,11 @@ def run_and_report_single(Model,
             itr = model.total_itr
             itr_linear = sum(model.nonlinear_solver_statistics.num_krylov_iters)
             itr_time_step_list = model.itr_time_step
-            outer_itr = model.accumulated_outer_loop_itr
-        except:
+        except Exception as e:
+            print(e)
             res = model.nonlinear_solver_statistics.residual_norms
             itr_time_step_list = model.itr_time_step
             itr_linear = sum(model.nonlinear_solver_statistics.num_krylov_iters)
-            outer_itr = model.accumulated_outer_loop_itr
             if res[-1] > params["nl_divergence_tol"] or np.isnan(np.array(res[-1])):
                 itr = "Div"
             elif model.outer_loop_itr > params["max_outer_iterations"]:
@@ -182,13 +189,26 @@ class SumTimeSteps:
         super().__init__(params)
         self.total_itr = 0
         self.itr_time_step = []
+        self.second_phase_started = False
+        self.third_phase_started = False
 
     def after_nonlinear_convergence(self) -> None:
         self.total_itr += self.nonlinear_solver_statistics.num_iteration
         self.itr_time_step.append(self.nonlinear_solver_statistics.num_iteration)
+        # Stop the simulation if more than 505 iterations have accumulated over several time steps.
+        if self.total_itr >= 505:
+            raise ValueError("Simulation exceeded maximum allowed total iterations.")
+        if self.time_manager.time==1*pp.HOUR and not self.second_phase_started:
+            self.itr_time_step.append(-1)   # Add marker for the start of the second phase of injection.
+            self.second_phase_started = True
+        elif self.time_manager.time==2*pp.HOUR and not self.third_phase_started:
+            self.itr_time_step.append(-2)   # Add marker for the start of the third phase of injection.
+            self.third_phase_started = True
         super().after_nonlinear_convergence()
 
     def after_nonlinear_failure(self) -> None:
         self.total_itr += self.nonlinear_solver_statistics.num_iteration
         self.itr_time_step.append(self.nonlinear_solver_statistics.num_iteration)
+        if self.total_itr >= 505:
+            raise ValueError("Simulation exceeded maximum allowed total iterations.")
         super().after_nonlinear_failure()
