@@ -14,9 +14,9 @@ def bar_chart(itr_time_step_list, lin_list, ymin, ymax, num_xticks, labels, file
     positions = [i * 0.5 for i in range(num_xticks)]
     positions_grid = [0.5*(i + 2*offset) for i in range(num_xticks) for offset in [-width, 0, width]]
     positions2 = [-1, 0, 1]
-    colors = [["#004697", "#0481af", "#64adb5"], 
-              ["#9f1b1b", "#EA4747", "#fd8585"],
-              ['#2ca02c', "#4d9a72", "#68998D"]]
+    colors = [["#0059FF", "#03b7ff", "#00fff7"], 
+              ["#ff0000", "#FF00C3", "#c800ff"],
+              ["#A26105", "#FABA09FF", "#FFEE06FF"]]
     _, ax1 = plt.subplots()
     ax1.set_ylim(ymin, ymax)
     _, ymax = ax1.get_ylim()
@@ -29,15 +29,19 @@ def bar_chart(itr_time_step_list, lin_list, ymin, ymax, num_xticks, labels, file
             for value in df.loc[ind].dropna():
                 if value == -1:
                     color_counter = 1
+                    ax1.bar(pos + foo * width, 1, width, align='center', bottom=bottom, linewidth=0.5, color='black')
+                    bottom += 1
                     continue
                 elif value == -2:
                     color_counter = 2
+                    ax1.bar(pos + foo * width, 1, width, align='center', bottom=bottom, linewidth=0.5, color='black')
+                    bottom += 1
                     continue
                 color = colors[j][color_counter]
                 if value==31:
-                    bar = ax1.bar(pos + foo * width, value, width, align='center', bottom=bottom, edgecolor='grey', hatch='/', linewidth=0.5, color=color, hatch_linewidth=10)
+                    bar = ax1.bar(pos + foo * width, value, width, align='center', bottom=bottom, hatch='/', linewidth=0.5, color=color, hatch_linewidth=10)
                 else:
-                    bar = ax1.bar(pos + foo * width, value, width, align='center', bottom=bottom, edgecolor='black', linewidth=0.5, color=color)
+                    bar = ax1.bar(pos + foo * width, value, width, align='center', bottom=bottom, linewidth=0.5, color=color)
                 bottom += value
             if bottom > ymax:
                 rect = bar[0]
@@ -54,7 +58,7 @@ def bar_chart(itr_time_step_list, lin_list, ymin, ymax, num_xticks, labels, file
     ax1.set_ylabel("Nonlinear iterations")
     ax2.set_ylabel("Linear iterations")
     plt.title(title, pad=15)
-    plt.savefig(file_name)
+    plt.savefig(file_name, dpi=600)
 
 
 def run_and_report_single(Model, 
