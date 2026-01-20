@@ -173,7 +173,6 @@ class HydroStaticPressureInitialization(HydrostaticPressure):
             "hydrostatic_pressure", subdomains
         )
         constrained_eq = self.pressure(subdomains) - hydrostatic_pressure
-        constrained_eq.set_name("mass_balance_equation_with_constrained_pressure")
         constrained_eq.set_name("mass_balance_equation")
         return constrained_eq
     
@@ -192,7 +191,10 @@ class PressureConstraintWell3D:
         super().update_time_dependent_ad_arrays()
 
         # Update injection pressure
-        current_injection_overpressure = self.params.get("injection_overpressure", 0)
+        injection_index = self.time_manager._scheduled_idx
+        injection_schedule = [1, 1, 2, 2, 3, 3]
+        injection_overpressure = self.params.get("injection_overpressure", 0)
+        current_injection_overpressure = injection_schedule[injection_index-1] * injection_overpressure
         for sd in self.mdg.subdomains(return_data=False):
             pp.set_solution_values(
                 name="current_injection_overpressure",
