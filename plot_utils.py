@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 def bar_chart(itr_time_step_list, lin_list, ymin, ymax, num_xticks, labels, file_name, 
               title=None, grid_study=False):
     width = 0.1
+    diverged = False
     indices = ['A', 'B', 'C']
     positions = [i * 0.5 for i in range(num_xticks)]
     positions_grid = [0.5*(i + 2*offset) for i in range(num_xticks) for offset in [-width, 0, width]]
@@ -27,19 +28,23 @@ def bar_chart(itr_time_step_list, lin_list, ymin, ymax, num_xticks, labels, file
             bottom = 0
             color_counter = 0
             for value in df.loc[ind].dropna():
-                if value == -1:
+                if value == -1:  # Onset of phase 2
                     color_counter = 1
                     ax1.bar(pos + foo * width, 1, width, align='center', bottom=bottom, linewidth=0.5, color='black')
                     bottom += 1
                     continue
-                elif value == -2:
+                elif value == -2:  # Onset of phase 3
                     color_counter = 2
                     ax1.bar(pos + foo * width, 1, width, align='center', bottom=bottom, linewidth=0.5, color='black')
                     bottom += 1
                     continue
+                elif value == -500:  # Diverged to infinity
+                    diverged = True
+                    continue
                 color = colors[j][color_counter]
-                if value==31:
+                if value==31 or diverged==True:
                     bar = ax1.bar(pos + foo * width, value, width, align='center', bottom=bottom, hatch='/', linewidth=0.5, color=color, hatch_linewidth=10)
+                    diverged = False
                 else:
                     bar = ax1.bar(pos + foo * width, value, width, align='center', bottom=bottom, linewidth=0.5, color=color)
                 bottom += value
@@ -48,7 +53,10 @@ def bar_chart(itr_time_step_list, lin_list, ymin, ymax, num_xticks, labels, file
                 xmid = rect.get_x() + rect.get_width() / 2
                 ax1.plot(xmid, ymax * 1.01, marker=(3,0,0), markersize=12, color='red', clip_on=False)
             else:
-                if not df.loc[ind].dropna().values[-1] == 31:
+                vals = df.loc[ind].dropna().values
+                # First case below is when the solver used the max amount of allowed iterations.
+                # Second case below is when the solver diverged to infinity.
+                if not vals[-1] == 31 and not vals[-2] == -500:
                     ax2.plot(pos + foo * width, lin, marker='o', color='black')
     if grid_study==True:
         plt.xticks(positions_grid, labels)
@@ -212,6 +220,8 @@ class SumTimeSteps:
 
     def after_nonlinear_failure(self) -> None:
         self.total_itr += self.nonlinear_solver_statistics.num_iteration
+        if self.nonlinear_solver_statistics.residual_norms[-1] > self.params["nl_divergence_tol"]:
+            self.itr_time_step.append(-500)
         self.itr_time_step.append(self.nonlinear_solver_statistics.num_iteration)
         if self.total_itr >= 505:
             raise ValueError("Simulation exceeded maximum allowed total iterations.")
