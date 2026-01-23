@@ -113,13 +113,3 @@ class NewtonReturnMap:
             self.res_after.append(np.linalg.norm(res_after_return))
 
         super().before_nonlinear_iteration()
-
-    
-class DelayedNewtonReturnMap(NewtonReturnMap):
-    """Turn on the return map only after 20 iterations of regular Newton.
-    For visualization purposes.
-
-    """
-
-    def _nrm_on(self) -> bool:
-        return self.nonlinear_solver_statistics.num_iteration > 20

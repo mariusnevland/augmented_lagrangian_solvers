@@ -135,7 +135,7 @@ def run_and_report_single(Model,
         raise NotImplementedError("Invalid nonlinear solver.")
 
     model = Simulation(params)
-    if solver in {"GNM", "GNM-RM", "Delayed_GNM-RM"}:
+    if solver in {"GNM", "GNM-RM"}:
         try:
             pp.run_time_dependent_model(model, params)
             itr = model.total_itr
@@ -144,11 +144,6 @@ def run_and_report_single(Model,
             res = model.nonlinear_solver_statistics.residual_norms
             if model.params.get("make_fig4a", False):
                 plt.semilogy(np.arange(0, len(res)), res, color="blue")
-            elif model.params.get("make_fig4b", False):
-                return_map_switch = 20
-                itr = np.arange(0, len(res))
-                plt.semilogy(itr[:return_map_switch+1], res[:return_map_switch+1], color="blue")
-                plt.semilogy(itr[return_map_switch:], res[return_map_switch:], linestyle="--", color="blue")
             elif model.params.get("make_fig5", False):
                 plt.plot(model.num_open, color="orange")
                 plt.plot(model.num_stick, color="red")

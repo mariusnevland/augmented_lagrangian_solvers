@@ -74,18 +74,6 @@ plt.ylabel("Residual norm", fontsize=14)
 plt.savefig("Fig4a.png", dpi=300, bbox_inches="tight")
 plt.close()
 
-# Figure 4b
-solver = "Delayed_GNM-RM"
-params = copy.deepcopy(params_injection_2D)
-params["make_fig4b"] = True
-params["injection_overpressure"] = 0.8 * 1e7
-_ = run_and_report_single(Model=SimpleInjection, params=params, c_value=c_value, solver=solver)
-plt.legend(["Return map off", "Return map on"], fontsize=14)
-plt.xlabel("Iteration", fontsize=14)
-plt.ylabel("Residual norm", fontsize=14)
-plt.savefig("Fig4b.png", dpi=300, bbox_inches="tight")
-plt.close()
-
 # Figure 5
 ModelWithContactCounter = add_mixin(ContactStatesCounter, SimpleInjection)
 solvers = ["GNM", "GNM-RM", "IRM"]
