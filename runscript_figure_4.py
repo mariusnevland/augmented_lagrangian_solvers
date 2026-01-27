@@ -6,6 +6,8 @@ import numpy as np
 import porepy as pp
 import pp_solvers
 import copy
+import time
+from porepy.viz.data_saving_model_mixin import FractureDeformationExporting
 from model_setup_two_dim import *
 from plot_utils import *
 from parameters import *
@@ -14,7 +16,7 @@ from model_setup_common import *
 from postprocessing_mixins import *
 from porepy.applications.test_utils.models import add_mixin
 
-# Runscript for producing figure ? in the article.
+# Runscript for producing figure 4 in the article.
 
 class SimpleInjectionInit(FractureNetwork2D,
                           pp_solvers.IterativeSolverMixin,
@@ -33,6 +35,7 @@ class SimpleInjectionInit(FractureNetwork2D,
 
 class SimpleInjection(FractureNetwork2D,
                       pp_solvers.IterativeSolverMixin,
+                      CustomExporter,
                       PressureConstraintWell,
                       AnisotropicStressBC,
                       ConstantPressureBC,
@@ -46,12 +49,12 @@ class SimpleInjection(FractureNetwork2D,
     pass
 
 
-c_values = [1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3]
-solvers = ["GNM", "GNM-RM", "IRM"]
+c_values = [1e-2]
+solvers = ["GNM"]
 itr_list = [[] for _ in c_values]
 itr_time_step_list = [[] for _ in c_values]
 itr_linear_list = [[] for _ in c_values]
-nonlinearities = ["No aperture", "No cubic law", "Full model"]
+nonlinearities = ["Full model"]
 for nonlin in nonlinearities:
     params_init = copy.deepcopy(params_initialization)
     if nonlin == "No aperture":
@@ -80,12 +83,21 @@ for nonlin in nonlinearities:
     for (i, c) in enumerate(c_values):
         for solver in solvers:     
             params = copy.deepcopy(params_injection_2D)
+            # params["folder_name"] = "results/injection_2D_states_aperture"
             params["injection_overpressure"] = 0.1 * 1e7
             params["irm_update_strategy"] = True
+            start = time.time()
             [itr_solver, itr_time_step_list_solver, itr_linear_solver] = run_and_report_single(Model=model_class, params=params, c_value=c, solver=solver)
+            end = time.time()
+            print("Time:")
+            print(end-start)
             itr_list[i].append(itr_solver)
             itr_time_step_list[i].append(itr_time_step_list_solver)
             itr_linear_list[i].append(itr_linear_solver)
-    bar_chart(itr_time_step_list, itr_linear_list, ymin=0, ymax=200, 
-              num_c_values=len(c_values), labels = [f"{x:.0e}" for x in c_values], 
-              file_name="bar_test_func", title=f"Nonlinearity: {nonlin}")
+        print(f"c-value: {c}")
+        print(itr_time_step_list[i])
+        print(itr_list[i])
+        print(itr_linear_list[i])
+    # bar_chart(itr_time_step_list, itr_linear_list, ymin=0, ymax=500, 
+    #           num_xticks=len(c_values), labels = [f"{x:.0e}" for x in c_values], 
+    #           file_name="bar_test_no_cubic", title=f"Nonlinearity: {nonlin}")
