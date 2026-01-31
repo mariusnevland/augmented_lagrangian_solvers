@@ -20,11 +20,8 @@ class NewtonReturnMap:
     res_before = []
     res_after = []
 
-    def _nrm_on(self) -> bool:
-        return True
-
     def before_nonlinear_iteration(self) -> None:
-        if self.nonlinear_solver_statistics.num_iteration > 0 and self._nrm_on():
+        if self.nonlinear_solver_statistics.num_iteration > 0:
 
             res_before_return = self.equation_system.assemble(evaluate_jacobian=False)
             self.res_before.append(np.linalg.norm(res_before_return))

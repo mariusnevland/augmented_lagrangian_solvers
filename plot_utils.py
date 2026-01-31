@@ -62,11 +62,12 @@ def bar_chart(itr_time_step_list, lin_list, ymin, ymax, num_xticks, labels, file
         plt.xticks(positions_grid, labels)
     else:
         plt.xticks(positions, labels)
-    ax1.set_xlabel("c-value [GPa/m]")
-    ax1.set_ylabel("Nonlinear iterations")
-    ax2.set_ylabel("Linear iterations")
-    plt.title(title, pad=15)
-    plt.savefig(file_name, dpi=600)
+    ax1.set_xlabel("c-value [GPa/m]", fontsize=14)
+    ax1.set_ylabel("Nonlinear iterations", fontsize=14)
+    ax2.set_ylabel("Linear iterations", fontsize=14)
+    ax2.set_ylim(0, 9000)
+    plt.title(title, fontsize=14, pad=15)
+    plt.savefig(file_name, dpi=600, bbox_inches="tight")
 
 
 def run_and_report_single(Model, 
@@ -122,14 +123,6 @@ def run_and_report_single(Model,
                          NewtonReturnMap,
                          Model):
             pass
-
-    elif solver == "Delayed_GNM-RM":
-
-        class Simulation(ContactMechanicsConstant,
-                         SumTimeSteps,
-                         DelayedNewtonReturnMap,
-                         Model):
-            pass
         
     else:
         raise NotImplementedError("Invalid nonlinear solver.")
@@ -143,11 +136,7 @@ def run_and_report_single(Model,
             itr_linear = sum(model.nonlinear_solver_statistics.num_krylov_iters)
             res = model.nonlinear_solver_statistics.residual_norms
             if model.params.get("make_fig4a", False):
-                plt.semilogy(np.arange(0, len(res)), res, color="blue")
-            elif model.params.get("make_fig5", False):
-                plt.plot(model.num_open, color="orange")
-                plt.plot(model.num_stick, color="red")
-                plt.plot(model.num_glide, color="blue")
+                plt.semilogy(np.arange(0, len(res)), res, color="#ff0000")
         except Exception as e:
             print(e)
             itr_linear = sum(model.nonlinear_solver_statistics.num_krylov_iters)
@@ -158,11 +147,7 @@ def run_and_report_single(Model,
             else:
                 itr = "NC"
             if model.params.get("make_fig4a", False):
-                plt.semilogy(np.arange(0, len(res)), res, color="red")
-            elif model.params.get("make_fig5", False):
-                plt.plot(model.num_open, color="orange")
-                plt.plot(model.num_stick, color="red")
-                plt.plot(model.num_glide, color="blue")
+                plt.semilogy(np.arange(0, len(res)), res, color="#0059FF")
     if solver == "IRM":
         try:
             run_implicit_return_map_model(model, params)
@@ -181,11 +166,7 @@ def run_and_report_single(Model,
             else:
                 itr = "NC"
             if model.params.get("make_fig4a", False):
-                plt.semilogy(np.arange(0, len(res)), res, color="orange")
-            elif model.params.get("make_fig5", False):
-                plt.plot(model.num_open, color="orange")
-                plt.plot(model.num_stick, color="red")
-                plt.plot(model.num_glide, color="blue")
+                plt.semilogy(np.arange(0, len(res)), res, color="#A26105")
     return [itr, itr_time_step_list, itr_linear]
 
 
@@ -202,8 +183,8 @@ class SumTimeSteps:
     def after_nonlinear_convergence(self) -> None:
         self.total_itr += self.nonlinear_solver_statistics.num_iteration
         self.itr_time_step.append(self.nonlinear_solver_statistics.num_iteration)
-        # Stop the simulation if more than 505 iterations have accumulated over several time steps.
-        if self.total_itr >= 505:
+        # Stop the simulation if more than 800 iterations have accumulated over several time steps.
+        if self.total_itr >= 801:
             raise ValueError("Simulation exceeded maximum allowed total iterations.")
         if self.time_manager.time==1*pp.HOUR and not self.second_phase_started:
             self.itr_time_step.append(-1)   # Add marker for the start of the second phase of injection.
@@ -216,8 +197,8 @@ class SumTimeSteps:
     def after_nonlinear_failure(self) -> None:
         self.total_itr += self.nonlinear_solver_statistics.num_iteration
         if self.nonlinear_solver_statistics.residual_norms[-1] > self.params["nl_divergence_tol"]:
-            self.itr_time_step.append(-500)
+            self.itr_time_step.append(-500)  # Marker for divergence to infinity.
         self.itr_time_step.append(self.nonlinear_solver_statistics.num_iteration)
-        if self.total_itr >= 505:
+        if self.total_itr >= 801:
             raise ValueError("Simulation exceeded maximum allowed total iterations.")
         super().after_nonlinear_failure()
