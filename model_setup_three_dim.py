@@ -18,11 +18,11 @@ class EllipticFractureNetwork:
                 600,
                 300,
                 0.5,
-                np.pi / 4,
+                np.pi / 3,
                 np.pi / 4,
             )
         f_2 = pp.create_elliptic_fracture(
-                np.array([800, 800, 700]),
+                np.array([500, 700, 1100]),
                 600,
                 300,
                 -0.5 ,
@@ -30,7 +30,7 @@ class EllipticFractureNetwork:
                 -np.pi / 4,
             )
         f_3 = pp.create_elliptic_fracture(
-                np.array([1100, 1000, 500]),
+                np.array([800, 1000, 1200]),
                 400,
                 500,
                 0.2 ,

@@ -222,7 +222,7 @@ class PressureConstraintWellGrid:
             + pp.ad.DenseArray(indicator) * constrained_eq
         )
         eq_with_pressure_constraint.set_name(
-            "mass_balance_equation_with_constrained_pressure"
+            "mass_balance_equation"
         )
  
         return eq_with_pressure_constraint
