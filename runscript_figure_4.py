@@ -83,9 +83,12 @@ for nonlin in nonlinearities:
     for (i, c) in enumerate(c_values):
         for solver in solvers:     
             params = copy.deepcopy(params_injection_2D)
-            # params["folder_name"] = "results/injection_2D_states_aperture"
             params["injection_overpressure"] = 0.1 * 1e7
             params["irm_update_strategy"] = True
+            if nonlin == "No aperture" and solver == "IRM" and c == 1e3:
+                params["linear_solver"] = linear_solver_ilu0
+            elif nonlin == "No cubic law" and solver == "IRM" and c == 1e3:
+                params["linear_solver"] = linear_solver_ilu3
             start = time.time()
             [itr_solver, itr_time_step_list_solver, itr_linear_solver] = run_and_report_single(Model=model_class, params=params, c_value=c, solver=solver)
             end = time.time()

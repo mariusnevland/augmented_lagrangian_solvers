@@ -30,7 +30,8 @@ nl_convergence_tol = 1e-8
 nl_convergence_tol_res = 1e-8
 nl_divergence_tol = 1e5
 max_iterations = 30
-max_outer_iterations = 500
+max_iterations_2D = 801
+max_iterations_3D = 1201
 units = pp.Units(kg=1e9, m=1)
 material_constants = {"solid": solid, "fluid": fluid, "numerical": numerical}
 
@@ -44,6 +45,11 @@ linear_solver_2D = {
                         },
     }
 
+linear_solver_ilu0 = linear_solver_2D.copy()
+linear_solver_ilu0["options"]["mechanics"]["pc_hypre_boomeramg_ilu_level"] = 0
+
+linear_solver_ilu3 = linear_solver_2D.copy()
+linear_solver_ilu3["options"]["mechanics"]["pc_hypre_boomeramg_ilu_level"] = 3
 
 linear_solver_3D = {
         "preconditioner_factory": pp_solvers.hm_factory,
@@ -73,7 +79,7 @@ time_manager_injection_3D = pp.TimeManager(
         dt_init=1 * pp.SECOND, 
         dt_min_max=(0.1 * pp.SECOND, 1 * pp.DAY),
         iter_max=max_iterations,
-        iter_optimal_range=(6, 20),
+        iter_optimal_range=(8, 20),
         iter_relax_factors=(0.7, 3.0),
         constant_dt=False, recomp_factor=0.5,
         recomp_max=6, print_info=True
@@ -96,7 +102,7 @@ params_initialization = {
 
 params_injection_2D = {
     "max_iterations": max_iterations,
-    "max_outer_iterations": max_outer_iterations,
+    "max_total_iterations": max_iterations_2D,
     "material_constants": material_constants,
     "time_manager": time_manager_injection,
     "units": units,
@@ -110,7 +116,7 @@ params_injection_2D = {
 
 params_figure_5 = {
     "max_iterations": max_iterations,
-    "max_outer_iterations": max_outer_iterations,
+    "max_total_iterations": max_iterations_2D,
     "material_constants": material_constants,
     "time_manager": pp.TimeManager(
         schedule=[0, 1 * pp.SECOND], dt_init=1 * pp.SECOND, constant_dt=True
@@ -126,6 +132,7 @@ params_figure_5 = {
 
 params_injection_3D = {
     "max_iterations": max_iterations,
+    "max_total_iterations": max_iterations_3D,
     "material_constants": material_constants,
     "time_manager": time_manager_injection_3D,
     "units": units,

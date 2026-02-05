@@ -184,7 +184,7 @@ class SumTimeSteps:
         self.total_itr += self.nonlinear_solver_statistics.num_iteration
         self.itr_time_step.append(self.nonlinear_solver_statistics.num_iteration)
         # Stop the simulation if more than 800 iterations have accumulated over several time steps.
-        if self.total_itr >= 801:
+        if self.total_itr >= self.params.get("max_total_iterations", 801):
             raise ValueError("Simulation exceeded maximum allowed total iterations.")
         if self.time_manager.time==1*pp.HOUR and not self.second_phase_started:
             self.itr_time_step.append(-1)   # Add marker for the start of the second phase of injection.
@@ -199,6 +199,6 @@ class SumTimeSteps:
         if self.nonlinear_solver_statistics.residual_norms[-1] > self.params["nl_divergence_tol"]:
             self.itr_time_step.append(-500)  # Marker for divergence to infinity.
         self.itr_time_step.append(self.nonlinear_solver_statistics.num_iteration)
-        if self.total_itr >= 801:
+        if self.total_itr >= self.params.get("max_total_iterations", 801):
             raise ValueError("Simulation exceeded maximum allowed total iterations.")
         super().after_nonlinear_failure()
