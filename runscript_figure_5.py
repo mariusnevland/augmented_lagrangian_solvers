@@ -13,6 +13,7 @@ from model_setup_common import *
 
 class SimpleInjectionInit(FractureNetwork2D,
                           pp_solvers.IterativeSolverMixin,
+                          ConstantAperture,
                           AnisotropicStressBC,
                           ConstantPressureBC,
                           CustomPressureStress,
@@ -48,6 +49,7 @@ class InitialCondition:
 
 class SimpleInjection(InitialCondition,
                       FractureNetwork2D,
+                      ConstantAperture,
                       pp_solvers.IterativeSolverMixin,
                       PressureConstraintWellGrid,
                       AnisotropicStressBC,
@@ -63,12 +65,14 @@ class SimpleInjection(InitialCondition,
 
 
 # Figure 4a
-c_value = 1e2
+c_value = 1e3
 solvers = ["GNM", "IRM", "GNM-RM"]
 for solver in solvers:
     params = copy.deepcopy(params_figure_5)
     params["make_fig4a"] = True
     params["injection_overpressure"] = 0.1 * 1e7
+    if solver == "IRM":
+        params["linear_solver"] = linear_solver_ilu0
     _ = run_and_report_single(Model=SimpleInjection, params=params, c_value=c_value, solver=solver)
 plt.legend(["GNM", "IRM", "GNM-RM"], fontsize=14)
 plt.xlabel("Iteration", fontsize=14)

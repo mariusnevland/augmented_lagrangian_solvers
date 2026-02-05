@@ -161,8 +161,6 @@ def run_and_report_single(Model,
             itr_linear = sum(model.nonlinear_solver_statistics.num_krylov_iters)
             if res[-1] > params["nl_divergence_tol"] or np.isnan(np.array(res[-1])):
                 itr = "Div"
-            elif model.outer_loop_itr > params["max_outer_iterations"]:
-                itr = "NCO"
             else:
                 itr = "NC"
             if model.params.get("make_fig4a", False):

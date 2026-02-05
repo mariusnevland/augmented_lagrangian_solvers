@@ -39,6 +39,8 @@ class ThreeDimInjectionInit(EllipticFractureNetwork,
 class ThreeDimInjection(EllipticFractureNetwork,
                         pp_solvers.IterativeSolverMixin,
                         PressureConstraintWell3D,
+                        CustomExporter,
+                        ExportInjectionCell,
                         LithoStaticTraction3D,
                         HydrostaticPressureBC,
                         CustomPressureStress,
@@ -52,7 +54,7 @@ class ThreeDimInjection(EllipticFractureNetwork,
     pass
 
 c_values = [1e-2]
-solvers = ["GNM"]
+solvers = ["GNM-RM"]
 itr_list = [[] for _ in c_values]
 itr_time_step_list = [[] for _ in c_values]
 itr_linear_list = [[] for _ in c_values]

@@ -7,11 +7,9 @@ import porepy as pp
 import pp_solvers
 import copy
 import time
-from porepy.viz.data_saving_model_mixin import FractureDeformationExporting
 from model_setup_two_dim import *
 from plot_utils import *
 from parameters import *
-from linesearch import *
 from model_setup_common import *
 from postprocessing_mixins import *
 from porepy.applications.test_utils.models import add_mixin

@@ -16,15 +16,14 @@ FloatType = TypeVar("FloatType", AdArray, np.ndarray, float)
 
 class ImplicitReturnMap:
 
-    total_itr = 0  # Counter for the total number of nonlinear iterations 
-                   # (i.e. number of linear systems solved)
-
-    wasted_itr = 0  # Counter for the number of "wasted" iterations, i.e. iterations where the
-                    # nonlinear solver did not converge.
-
-    outer_loop_itr = 0  # Outer loop iteration counter, reset at each time step.
-
-    accumulated_outer_loop_itr = 0  # Accumulated outer loop iteration counter over all time steps.
+    def __init__(self, params):
+        super().__init__(params)
+        self.total_itr = 0
+        self.itr_time_step = []
+        self.total_linear_itr = 0
+        self.outer_loop_itr = 0
+        self.accumulated_outer_loop_itr = 0
+        self.itr_time_step_counter = 0
 
     c_n: float  # Regularization parameter
 
@@ -248,7 +247,7 @@ class ImplicitReturnMap:
 
         # Keep track of the total number of nonlinear iterations
         # In other words, the total number of linear systems solved.
-        self.total_itr += self.nonlinear_solver_statistics.num_iteration
+        self.itr_time_step_counter += self.nonlinear_solver_statistics.num_iteration
         if self.outer_loop_itr == 0:
             self.first_itr_stats = self.nonlinear_solver_statistics.num_iteration
         self.outer_loop_itr += 1
@@ -260,8 +259,8 @@ class ImplicitReturnMap:
             # We cannot decrease the constant time step.
             raise ValueError("Inner Newton loop did not converge.")
         else:
-            self.total_itr += self.nonlinear_solver_statistics.num_iteration
-            self.wasted_itr += self.nonlinear_solver_statistics.num_iteration
+            # self.total_itr += self.nonlinear_solver_statistics.num_iteration
+            self.itr_time_step_counter += self.nonlinear_solver_statistics.num_iteration
             self.inner_loop_fail = True
 
     def after_outer_loop_convergence(self, iteration_counter: int) -> None:
@@ -288,6 +287,9 @@ class ImplicitReturnMap:
         # We do not reset t_n_prev and t_t_prev, as we want the initial
         # guess at the next time step to be the solution at the previous time step.
         self.outer_loop_itr = 0  # Reset outer loop counter for next time step.
+        # self.itr_time_step.append(self.itr_time_step_counter)
+        self.itr_time_step_counter = 0
+        print("Converged")
 
     def after_outer_loop_failure(self) -> None:
         """Method to be called if the outer loop fails to converge."""
@@ -304,6 +306,7 @@ class ImplicitReturnMap:
             prev_solution = self.equation_system.get_variable_values(time_step_index=0)
             self.equation_system.set_variable_values(prev_solution, iterate_index=0)
             self.inner_loop_fail = False  # Reset inner loop failure indicator.
+            self.itr_time_step_counter = 0
 
 
 def run_implicit_return_map_model(model, params: dict) -> None:
@@ -319,8 +322,7 @@ def run_implicit_return_map_model(model, params: dict) -> None:
 
     def return_map_algorithm() -> None:
         converged = False
-        max_itr_outer = params["max_outer_iterations"]  # Maximum number of allowed outer loop iterations per time step.
-        while not converged and model.outer_loop_itr <= max_itr_outer:     
+        while not converged:     
             # One iteration of the outer loop consists of replacing the complementarity
             # functions with regularized versions, and solving the resulting nonlinear
             # system.
@@ -356,7 +358,6 @@ def run_implicit_return_map_model(model, params: dict) -> None:
             # Newton solver.
             outer_increment_norm = model.compute_nonlinear_increment_norm(outer_increment)
             residual_norm = model.compute_residual_norm(residual_total, residual_total)
-            print(residual_norm)
             # First check if the outer loop diverged to infinity.
             if residual_norm > params["nl_divergence_tol"]:
                 break
