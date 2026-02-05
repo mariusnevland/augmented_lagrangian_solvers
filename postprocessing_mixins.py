@@ -11,52 +11,19 @@ class ComputeContactStates:
     def compute_contact_states(self, split_output: bool = False) -> list:
         # Compute contact states of each fracture cell using the displacement increment.
         # Returns a list where:
-        # Open=0, Sticking=1, Gliding=2
+        # Stick=1, Slip=2
         subdomains = self.mdg.subdomains(dim=self.nd - 1)
-        f_norm = pp.ad.Function(partial(pp.ad.l2_norm, self.nd - 1), "norm_function")
-        tangential_basis: list[pp.ad.SparseArray] = self.basis(
-            subdomains, dim=self.nd - 1  # type: ignore[call-arg]
-        )
-        t_n = self.normal_component(subdomains) @ self.contact_traction(subdomains)
-        t_t = self.tangential_component(subdomains) @ self.contact_traction(subdomains)
-        u_n = self.normal_component(subdomains) @ self.displacement_jump(subdomains)
         u_t = self.tangential_component(subdomains) @ self.displacement_jump(subdomains)
-        u_t_increment: pp.ad.Operator = pp.ad.time_increment(u_t)
-        c_num_as_scalar = self.contact_mechanics_numerical_constant(subdomains)
-        scalar_to_tangential = pp.ad.sum_projection_list(tangential_basis)
-        # The fracture states are defined differently for IRM, as the
-        # complementarity functions are regularized in that case.
-        if hasattr(self, "t_t_prev"):  # IRM is used
-            t_t_prev_ad = pp.ad.DenseArray(self.t_t_prev)
-            tangential_sum = (
-                t_t_prev_ad + (scalar_to_tangential @ c_num_as_scalar) * u_t_increment
-            )
-        else:   # GNM or GNM-RM is used
-            tangential_sum = t_t + (scalar_to_tangential @ c_num_as_scalar) * u_t_increment
-        norm_tangential_sum = f_norm(tangential_sum)
-        b = (
-            Scalar(-1.0)
-            * self.friction_coefficient(subdomains)
-            * (
-                t_n
-                + self.contact_mechanics_numerical_constant(subdomains)
-                * (u_n - self.fracture_gap(subdomains))
-            )
-        )
-
-        norm_tang_sum_eval = norm_tangential_sum.value(self.equation_system)
-        b_eval = b.value(self.equation_system)
+        # # Cumulative fracture states
+        utval = u_t.value(self.equation_system)
+        utinc = utval-self.u_t_init
         states = []
         tol = self.numerical.open_state_tolerance
-        for vals_norm, vals_b in zip(norm_tang_sum_eval, b_eval):
-            if vals_b - vals_norm > tol and vals_b > tol:
-                states.append(1)  # Stick
-            elif vals_b - vals_norm <= tol and vals_b > tol:
-                states.append(2)  # Glide
-            elif vals_b <= tol:
-                states.append(0)  # Open
+        for vals in utinc:
+            if np.linalg.norm(vals) > tol:
+                states.append(2)
             else:
-                print("Should not get here.")
+                states.append(1)
 
         # Split combined states vector into subdomain-corresponding vectors
         if split_output:
@@ -71,139 +38,51 @@ class ComputeContactStates:
             return split_states
         else:
             return states
-        
-
-class ContactStatesCounter(ComputeContactStates):
-
-    """Counts the number of open, sticking, and gliding fracture cells."""
-    num_open = []
-    num_stick = []
-    num_glide = []
-
-    def before_nonlinear_loop(self) -> None:
-        super().before_nonlinear_loop()
-        self.num_open.clear()
-        self.num_stick.clear()
-        self.num_glide.clear()
-        
-    def after_nonlinear_iteration(self, nonlinear_increment: np.ndarray) -> None:
-        super().after_nonlinear_iteration(nonlinear_increment)
-        states = self.compute_contact_states()
-        self.num_open.append(states.count(0))
-        self.num_stick.append(states.count(1))
-        self.num_glide.append(states.count(2))
 
 
-class IterationExporting(ComputeContactStates):
-    """Export data from each nonlinear iteration, including fracture contact states."""
+class CustomExporter(ComputeContactStates):
+    """Export fracture contact states at every time step."""
 
-    @property
-    def iterate_indices(self):
-        """Force storing all previous iterates."""
-        return np.array([0, 1])
+    def __init__(self, params):
+        super().__init__(params)
+        self.u_t_init = 0
+        self.aperture_init = 0
+        self.displacement_init = 0
 
-    def initialize_data_saving(self):
-        """Initialize iteration exporter."""
-        super().initialize_data_saving()
-        # Setting export_constants_separately to False facilitates operations such as
-        # filtering by dimension in ParaView and is done here for illustrative purposes.
-        self.iteration_exporter = pp.Exporter(
-            self.mdg,
-            file_name=self.params["file_name"] + "_iterations",
-            folder_name=self.params["folder_name"],
-            export_constants_separately=False,
-        )
+    def prepare_simulation(self):
+        super().prepare_simulation()
+        matrix_subdomains = self.mdg.subdomains(dim=self.nd)
+        fracture_subdomains = self.mdg.subdomains(dim=self.nd - 1)
+        u_t = self.tangential_component(fracture_subdomains) @ self.displacement_jump(fracture_subdomains)
+        aperture = self.aperture(fracture_subdomains)
+        displacement = self.displacement(matrix_subdomains)
+        self.u_t_init = u_t.value(self.equation_system)
+        self.aperture_init = aperture.value(self.equation_system)
+        self.displacement_init = displacement.value(self.equation_system)
 
-    def data_to_export_iteration(self):
-        """Returns data for iteration exporting.
-
-        Returns:
-            Any type compatible with data argument of pp.Exporter().write_vtu().
-
-        """
-        # The following is a slightly modified copy of the method
-        # data_to_export() from DataSavingMixin.
-        data = []
-        variables = self.equation_system.variables
-        for var in variables:
-            # Note that we use iterate_index=0 to get the current solution, whereas
-            # the regular exporter uses time_step_index=0.
-            scaled_values = self.equation_system.get_variable_values(
-                variables=[var], iterate_index=0
-            )
-            units = var.tags["si_units"]
-            values = self.units.convert_units(scaled_values, units, to_si=True)
-            data.append((var.domain, var.name, values))
-
-            # Append increments if available
-            try:
-                prev_scaled_values = self.equation_system.get_variable_values(
-                    variables=[var], iterate_index=1
-                )
-                inc_values = self.units.convert_units(
-                    scaled_values - prev_scaled_values, units, to_si=True
-                )
-            except:
-                inc_values = self.units.convert_units(
-                    scaled_values - scaled_values, units, to_si=True
-                )
-            data.append((var.domain, var.name + "_inc", inc_values))
-
-        # Add contact states
+    def data_to_export(self):
+        data = super().data_to_export()
+        sds_mat = self.mdg.subdomains(dim=self.nd)
+        sds_frac = self.mdg.subdomains(dim=self.nd - 1)
         states = self.compute_contact_states(split_output=True)
-        try:
-            prev_states = self.prev_states.copy()
-        except:
-            prev_states = states.copy()
-        # data.append((self.mdg.subdomains(dim=self.nd-1), "states", states))
-        for i, sd in enumerate(self.mdg.subdomains(dim=self.nd - 1)):
+        aperture_diff = self.aperture(sds_frac).value(self.equation_system) - self.aperture_init
+        displacement_diff = self.displacement(sds_mat).value(self.equation_system) - self.displacement_init
+        cell_offsets = np.cumsum([0] + [sd.num_cells for sd in sds_frac])
+        cell_offsets_nd = np.cumsum([0] + [sd.num_cells * self.nd for sd in sds_mat])
+        for i, sd in enumerate(sds_mat):
+            data.append((sd, 
+                         "displacement_diff", 
+                        displacement_diff[cell_offsets_nd[i] : cell_offsets_nd[i + 1]]))
+        for i, sd in enumerate(sds_frac):
             data.append((sd, "states", states[i]))
-            data.append((sd, "prev states", prev_states[i]))
-        for sd in self.mdg.subdomains(dim=self.nd - 1):
-            normal_traction = self.normal_component([sd]) @ self.contact_traction([sd])
-            tangential_traction = self.tangential_component([sd]) @ self.contact_traction([sd])
-            data.append((sd, "tangential_traction", tangential_traction.value(self.equation_system)))
-            data.append((sd, "normal_traction", normal_traction.value(self.equation_system)))
-        # Cache contact states
-        self.prev_state = states.copy()
-
+            data.append(
+                (
+                    sd,
+                    "aperture_diff",
+                    aperture_diff[cell_offsets[i] : cell_offsets[i + 1]],
+                )
+            )
         return data
-    
-    def save_data_iteration(self):
-        """Export current solution to vtu files.
-
-        This method is typically called by after_nonlinear_iteration.
-
-        Having a separate exporter for iterations avoids distinguishing between iterations
-        and time steps in the regular exporter's history (used for export_pvd).
-
-        """
-        # To make sure the nonlinear iteration index does not interfere with the
-        # time part, we multiply the latter by the next power of ten above the
-        # maximum number of nonlinear iterations. Default value set to 10 in
-        # accordance with the default value used in NewtonSolver
-        n = self.params.get("max_iterations", 10)
-        p = round(np.log10(n))
-        r = 10**p
-        if r <= n:
-            r = 10 ** (p + 1)
-        self.iteration_exporter.write_vtu(
-            self.data_to_export_iteration(),
-            time_dependent=True,
-            time_step=self.nonlinear_solver_statistics.num_iteration + r * self.time_manager.time_index,
-        )
-
-    def after_nonlinear_iteration(self, solution_vector: np.ndarray) -> None:
-        """Integrate iteration export into simulation workflow.
-
-        Order of operations is important, super call distributes the solution to
-        iterate subdictionary.
-
-        """
-        super().after_nonlinear_iteration(solution_vector)
-        self.save_data_iteration()
-        self.iteration_exporter.write_pvd()
-        print()  # force progressbar to output.
 
 
 class ExportInjectionCell:
