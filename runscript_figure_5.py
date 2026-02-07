@@ -13,7 +13,6 @@ from model_setup_common import *
 
 class SimpleInjectionInit(FractureNetwork2D,
                           pp_solvers.IterativeSolverMixin,
-                          ConstantAperture,
                           AnisotropicStressBC,
                           ConstantPressureBC,
                           CustomPressureStress,
@@ -27,29 +26,8 @@ class SimpleInjectionInit(FractureNetwork2D,
                           pp.poromechanics.Poromechanics):
     pass
 
-def get_initial_condition():
-    params = copy.deepcopy(params_initialization)
-    model = SimpleInjectionInit(params)
-    pp.run_time_dependent_model(model, params)
-    vals = model.equation_system.get_variable_values(iterate_index=0)
-    return vals
 
-init_cond = get_initial_condition()
-
-
-class InitialCondition:
-    def initial_condition(self) -> None:
-        super().initial_condition()
-        self.equation_system.set_variable_values(
-            init_cond,
-            time_step_index=0,
-            iterate_index=0,
-        )
-
-
-class SimpleInjection(InitialCondition,
-                      FractureNetwork2D,
-                      ConstantAperture,
+class SimpleInjection(FractureNetwork2D,
                       pp_solvers.IterativeSolverMixin,
                       PressureConstraintWellGrid,
                       AnisotropicStressBC,
@@ -67,15 +45,58 @@ class SimpleInjection(InitialCondition,
 # Figure 4a
 c_value = 1e3
 solvers = ["GNM", "IRM", "GNM-RM"]
+params_init = copy.deepcopy(params_initialization)
+model_class_init = add_mixin(ConstantAperture, SimpleInjectionInit)
+model_init = model_class_init(params_init)
+pp.run_time_dependent_model(model_init, params_init)
+vals = model_init.equation_system.get_variable_values(iterate_index=0)
+class InitialCondition:
+    def initial_condition(self) -> None:
+        super().initial_condition()
+        self.equation_system.set_variable_values(
+            vals,
+            time_step_index=0,
+            iterate_index=0,
+        )
+model_class = add_mixin(InitialCondition, add_mixin(ConstantAperture, SimpleInjection))
 for solver in solvers:
     params = copy.deepcopy(params_figure_5)
     params["make_fig4a"] = True
     params["injection_overpressure"] = 0.1 * 1e7
     if solver == "IRM":
         params["linear_solver"] = linear_solver_ilu0
-    _ = run_and_report_single(Model=SimpleInjection, params=params, c_value=c_value, solver=solver)
-plt.legend(["GNM", "IRM", "GNM-RM"], fontsize=14)
-plt.xlabel("Iteration", fontsize=14)
+    _ = run_and_report_single(Model=model_class, params=params, c_value=c_value, solver=solver)
+plt.legend(solvers, fontsize=14)
+plt.xlabel("Nonlinear iteration", fontsize=14)
 plt.ylabel("Residual norm", fontsize=14)
-plt.savefig("Fig4atest.png", dpi=300, bbox_inches="tight")
+plt.title("Model A, " + r"$c=10^{3}$ " + "GPa/m", fontsize=14)
+plt.savefig("Fig4a.png", dpi=300, bbox_inches="tight")
+plt.close()
+
+
+# Figure 4b
+c_value = 1e-3
+params_init = copy.deepcopy(params_initialization)
+model_init = SimpleInjectionInit(params_init)
+pp.run_time_dependent_model(model_init, params_init)
+vals = model_init.equation_system.get_variable_values(iterate_index=0)
+class InitialCondition:
+    def initial_condition(self) -> None:
+        super().initial_condition()
+        self.equation_system.set_variable_values(
+            vals,
+            time_step_index=0,
+            iterate_index=0,
+        )
+model_class = add_mixin(InitialCondition, SimpleInjection)
+for solver in solvers:
+    params = copy.deepcopy(params_figure_5)
+    params["make_fig4a"] = True
+    params["injection_overpressure"] = 0.1 * 1e7
+    _ = run_and_report_single(Model=model_class, params=params, c_value=c_value, solver=solver)
+plt.legend(solvers, fontsize=14)
+plt.xlabel("Nonlinear iteration", fontsize=14)
+plt.ylabel("Residual norm", fontsize=14)
+plt.title("Model C, " + r"$c=10^{-3}$ " + "GPa/m", fontsize=14)
+plt.savefig("Fig4b.png", dpi=300, bbox_inches="tight")
 plt.close()
