@@ -43,7 +43,7 @@ def bar_chart(itr_time_step_list, lin_list, ymin, ymax, num_xticks, labels, file
                     continue
                 color = colors[j][color_counter]
                 if value==31 or diverged==True:
-                    bar = ax1.bar(pos + foo * width, value, width, align='center', bottom=bottom, hatch='/', linewidth=0.5, color=color, hatch_linewidth=10)
+                    bar = ax1.bar(pos + foo * width, value, width, align='center', bottom=bottom, hatch='///', linewidth=0.5, color=color, hatch_linewidth=3)
                     diverged = False
                 else:
                     bar = ax1.bar(pos + foo * width, value, width, align='center', bottom=bottom, linewidth=0.5, color=color)
@@ -129,15 +129,16 @@ def run_and_report_single(Model,
 
     model = Simulation(params)
     if solver in {"GNM", "GNM-RM"}:
+        color = "#0059FF" if solver == "GNM" else "#ff0000"
         try:
             pp.run_time_dependent_model(model, params)
             itr = model.total_itr
             itr_time_step_list = model.itr_time_step
             itr_linear = sum(model.nonlinear_solver_statistics.num_krylov_iters)
             res = model.nonlinear_solver_statistics.residual_norms
-            if model.params.get("make_fig4a", False):
-                plt.semilogy(np.arange(0, len(res)), res, color="#ff0000")
-        except Exception as e:
+            if model.params.get("make_fig5", False):
+                plt.semilogy(np.arange(0, len(res)), res, color=color)
+        except (Exception, RuntimeError) as e:
             print(e)
             itr_linear = sum(model.nonlinear_solver_statistics.num_krylov_iters)
             itr_time_step_list = model.itr_time_step
@@ -146,15 +147,15 @@ def run_and_report_single(Model,
                 itr = "Div"
             else:
                 itr = "NC"
-            if model.params.get("make_fig4a", False):
-                plt.semilogy(np.arange(0, len(res)), res, color="#0059FF")
+            if model.params.get("make_fig5", False):
+                plt.semilogy(np.arange(0, len(res)), res, color=color)
     if solver == "IRM":
         try:
             run_implicit_return_map_model(model, params)
             itr = model.total_itr
             itr_linear = sum(model.nonlinear_solver_statistics.num_krylov_iters)
             itr_time_step_list = model.itr_time_step
-        except Exception as e:
+        except (Exception, RuntimeError) as e:
             print(e)
             res = model.nonlinear_solver_statistics.residual_norms
             itr_time_step_list = model.itr_time_step
@@ -163,7 +164,7 @@ def run_and_report_single(Model,
                 itr = "Div"
             else:
                 itr = "NC"
-            if model.params.get("make_fig4a", False):
+            if model.params.get("make_fig5", False):
                 plt.semilogy(np.arange(0, len(res)), res, color="#A26105")
     return [itr, itr_time_step_list, itr_linear]
 

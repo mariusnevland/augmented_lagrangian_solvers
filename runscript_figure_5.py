@@ -42,7 +42,7 @@ class SimpleInjection(FractureNetwork2D,
     pass
 
 
-# Figure 4a
+# Figure 5a
 c_value = 1e3
 solvers = ["GNM", "IRM", "GNM-RM"]
 params_init = copy.deepcopy(params_initialization)
@@ -61,7 +61,7 @@ class InitialCondition:
 model_class = add_mixin(InitialCondition, add_mixin(ConstantAperture, SimpleInjection))
 for solver in solvers:
     params = copy.deepcopy(params_figure_5)
-    params["make_fig4a"] = True
+    params["make_fig5"] = True
     params["injection_overpressure"] = 0.1 * 1e7
     if solver == "IRM":
         params["linear_solver"] = linear_solver_ilu0
@@ -70,11 +70,11 @@ plt.legend(solvers, fontsize=14)
 plt.xlabel("Nonlinear iteration", fontsize=14)
 plt.ylabel("Residual norm", fontsize=14)
 plt.title("Model A, " + r"$c=10^{3}$ " + "GPa/m", fontsize=14)
-plt.savefig("Fig4a.png", dpi=300, bbox_inches="tight")
+plt.savefig("Fig5a.png", dpi=300, bbox_inches="tight")
 plt.close()
 
 
-# Figure 4b
+# Figure 5b
 c_value = 1e-3
 params_init = copy.deepcopy(params_initialization)
 model_init = SimpleInjectionInit(params_init)
@@ -91,12 +91,12 @@ class InitialCondition:
 model_class = add_mixin(InitialCondition, SimpleInjection)
 for solver in solvers:
     params = copy.deepcopy(params_figure_5)
-    params["make_fig4a"] = True
+    params["make_fig5"] = True
     params["injection_overpressure"] = 0.1 * 1e7
     _ = run_and_report_single(Model=model_class, params=params, c_value=c_value, solver=solver)
 plt.legend(solvers, fontsize=14)
 plt.xlabel("Nonlinear iteration", fontsize=14)
 plt.ylabel("Residual norm", fontsize=14)
 plt.title("Model C, " + r"$c=10^{-3}$ " + "GPa/m", fontsize=14)
-plt.savefig("Fig4b.png", dpi=300, bbox_inches="tight")
+plt.savefig("Fig5b.png", dpi=300, bbox_inches="tight")
 plt.close()
