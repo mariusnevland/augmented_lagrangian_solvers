@@ -47,12 +47,12 @@ class SimpleInjection(FractureNetwork2D,
     pass
 
 
-c_values = [1e-2]
-solvers = ["GNM"]
+c_values = [1e3]
+solvers = ["IRM"]
 itr_list = [[] for _ in c_values]
 itr_time_step_list = [[] for _ in c_values]
 itr_linear_list = [[] for _ in c_values]
-nonlinearities = ["Full model"]
+nonlinearities = ["No aperture"]
 for nonlin in nonlinearities:
     params_init = copy.deepcopy(params_initialization)
     if nonlin == "No aperture":
@@ -79,14 +79,14 @@ for nonlin in nonlinearities:
     elif nonlin == "Full model":
         model_class = add_mixin(InitialCondition, SimpleInjection) 
     for (i, c) in enumerate(c_values):
-        for solver in solvers:     
-            params = copy.deepcopy(params_injection_2D)
-            params["injection_overpressure"] = 0.1 * 1e7
-            params["irm_update_strategy"] = True
+        for solver in solvers:
+            params = copy.deepcopy(params_injection_2D)    
             if nonlin == "No aperture" and solver == "IRM" and c == 1e3:
-                params["linear_solver"] = linear_solver_ilu0
+                params["linear_solver"] = linear_solver_ilu1
             elif nonlin == "No cubic law" and solver == "IRM" and c == 1e3:
                 params["linear_solver"] = linear_solver_ilu3
+            params["injection_overpressure"] = 0.1 * 1e7
+            params["irm_update_strategy"] = True
             start = time.time()
             [itr_solver, itr_time_step_list_solver, itr_linear_solver] = run_and_report_single(Model=model_class, params=params, c_value=c, solver=solver)
             end = time.time()

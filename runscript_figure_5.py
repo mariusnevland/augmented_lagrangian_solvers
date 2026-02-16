@@ -64,7 +64,7 @@ for solver in solvers:
     params["make_fig5"] = True
     params["injection_overpressure"] = 0.1 * 1e7
     if solver == "IRM":
-        params["linear_solver"] = linear_solver_ilu0
+        params["linear_solver"] = linear_solver_ilu1
     _ = run_and_report_single(Model=model_class, params=params, c_value=c_value, solver=solver)
 plt.legend(solvers, fontsize=14)
 plt.xlabel("Nonlinear iteration", fontsize=14)

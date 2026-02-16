@@ -1,5 +1,6 @@
 import numpy as np
 import porepy as pp
+import copy
 import pp_solvers
 
 solid_values = {"biot_coefficient": 0.8,
@@ -31,7 +32,7 @@ nl_convergence_tol_res = 1e-8
 nl_divergence_tol = 1e5
 max_iterations = 30
 max_iterations_2D = 801
-max_iterations_3D = 1201
+max_iterations_3D = 801
 units = pp.Units(kg=1e9, m=1)
 material_constants = {"solid": solid, "fluid": fluid, "numerical": numerical}
 
@@ -45,10 +46,10 @@ linear_solver_2D = {
                         },
     }
 
-linear_solver_ilu0 = linear_solver_2D.copy()
-linear_solver_ilu0["options"]["mechanics"]["pc_hypre_boomeramg_ilu_level"] = 0
+linear_solver_ilu1 = copy.deepcopy(linear_solver_2D)
+linear_solver_ilu1["options"]["mechanics"]["pc_hypre_boomeramg_ilu_level"] = 1
 
-linear_solver_ilu3 = linear_solver_2D.copy()
+linear_solver_ilu3 = copy.deepcopy(linear_solver_2D)
 linear_solver_ilu3["options"]["mechanics"]["pc_hypre_boomeramg_ilu_level"] = 3
 
 linear_solver_3D = {
@@ -82,7 +83,7 @@ time_manager_injection_3D = pp.TimeManager(
         iter_optimal_range=(8, 20),
         iter_relax_factors=(0.7, 3.0),
         constant_dt=False, recomp_factor=0.5,
-        recomp_max=6, print_info=True
+        recomp_max=6, print_info=False
     )
 
 params_initialization = {
