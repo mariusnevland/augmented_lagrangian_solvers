@@ -88,6 +88,26 @@ class LithoStaticTraction3D:
         values[1, south] = scale_y * lithostatic[south] * cell_volumes[south]
         values = values.ravel("F")
         return values
+
+
+class LithoStaticAnisotopic(LithoStaticTraction3D):
+
+    # Increase the anisotropy of the stress field.
+
+    def bc_values_stress(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
+        all_bf, east, west, north, south, top, bottom = self.domain_boundary_sides(boundary_grid)
+        values = np.zeros((self.nd, boundary_grid.num_cells))
+        cell_volumes = boundary_grid.cell_volumes
+        depth = self._depth(boundary_grid.cell_centers[2,:])
+        lithostatic = self.lithostatic_pressure(depth)
+        scale_x, scale_y, scale_z = 0.6, 0.55, 1
+        values[0, east] = -scale_x * lithostatic[east] * cell_volumes[east]
+        values[2, top] = -scale_z * lithostatic[top] * cell_volumes[top]
+        values[0, west] = scale_x * lithostatic[west] * cell_volumes[west]
+        values[1, north] = -scale_y * lithostatic[north] * cell_volumes[north]
+        values[1, south] = scale_y * lithostatic[south] * cell_volumes[south]
+        values = values.ravel("F")
+        return values
     
 
 class ConstrainedPressureEquaton3D:
