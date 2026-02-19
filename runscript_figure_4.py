@@ -47,17 +47,18 @@ class SimpleInjection(FractureNetwork2D,
     pass
 
 
-c_values = [1e3]
-solvers = ["IRM"]
-itr_list = [[] for _ in c_values]
-itr_time_step_list = [[] for _ in c_values]
-itr_linear_list = [[] for _ in c_values]
-nonlinearities = ["No aperture"]
-for nonlin in nonlinearities:
+c_values = [1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3]
+solvers = ["GNM", "GNM-RM", "IRM"]
+model_index = ["A", "B", "C"]
+nonlinearities = ["Constant fracture volume and permeability", "Constant fracture permeability", "Full model"]
+for (ind, nonlin) in zip(model_index, nonlinearities):
+    itr_list = [[] for _ in c_values]
+    itr_time_step_list = [[] for _ in c_values]
+    itr_linear_list = [[] for _ in c_values]
     params_init = copy.deepcopy(params_initialization)
-    if nonlin == "No aperture":
+    if nonlin == "Constant fracture volume and permeability":
         model_class_init = add_mixin(ConstantAperture, SimpleInjectionInit)
-    elif nonlin == "No cubic law":
+    elif nonlin == "Constant fracture permeability":
         model_class_init = add_mixin(ConstantCubicLawPermeability, SimpleInjectionInit)
     elif nonlin == "Full model":
         model_class_init = SimpleInjectionInit
@@ -72,33 +73,26 @@ for nonlin in nonlinearities:
                 time_step_index=0,
                 iterate_index=0,
             )
-    if nonlin == "No aperture":
+    if nonlin == "Constant fracture volume and permeability":
         model_class = add_mixin(InitialCondition, add_mixin(ConstantAperture, SimpleInjection))
-    elif nonlin == "No cubic law":
+    elif nonlin == "Constant fracture permeability":
         model_class = add_mixin(InitialCondition, add_mixin(ConstantCubicLawPermeability, SimpleInjection))
     elif nonlin == "Full model":
         model_class = add_mixin(InitialCondition, SimpleInjection) 
     for (i, c) in enumerate(c_values):
         for solver in solvers:
-            params = copy.deepcopy(params_injection_2D)    
-            if nonlin == "No aperture" and solver == "IRM" and c == 1e3:
+            params = copy.deepcopy(params_injection_2D)
+            # A different linear solver configuration is needed for certain cases.    
+            if nonlin == "Constant fracture volume and permeability" and solver == "IRM" and c == 1e3:
                 params["linear_solver"] = linear_solver_ilu1
-            elif nonlin == "No cubic law" and solver == "IRM" and c == 1e3:
+            elif nonlin == "Constant fracture permeability" and solver == "IRM" and c == 1e3:
                 params["linear_solver"] = linear_solver_ilu3
             params["injection_overpressure"] = 0.1 * 1e7
             params["irm_update_strategy"] = True
-            start = time.time()
             [itr_solver, itr_time_step_list_solver, itr_linear_solver] = run_and_report_single(Model=model_class, params=params, c_value=c, solver=solver)
-            end = time.time()
-            print("Time:")
-            print(end-start)
             itr_list[i].append(itr_solver)
             itr_time_step_list[i].append(itr_time_step_list_solver)
             itr_linear_list[i].append(itr_linear_solver)
-        print(f"c-value: {c}")
-        print(itr_time_step_list[i])
-        print(itr_list[i])
-        print(itr_linear_list[i])
-    # bar_chart(itr_time_step_list, itr_linear_list, ymin=0, ymax=500, 
-    #           num_xticks=len(c_values), labels = [f"{x:.0e}" for x in c_values], 
-    #           file_name="bar_test_no_cubic", title=f"Nonlinearity: {nonlin}")
+    bar_chart(itr_time_step_list, itr_linear_list, ymin=0, ymax=800, 
+              num_xticks=len(c_values), labels=[f"{x:.0e}" for x in c_values], 
+              file_name=f"bar_chart_model_{ind}_2D", title=f"Model {ind}: {nonlin}")

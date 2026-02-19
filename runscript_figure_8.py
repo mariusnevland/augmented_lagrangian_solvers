@@ -53,17 +53,18 @@ class ThreeDimInjection(EllipticFractureNetwork,
                         pp.poromechanics.Poromechanics):
     pass
 
-c_values = [1e-2]
-solvers = ["GNM-RM"]
-itr_list = [[] for _ in c_values]
-itr_time_step_list = [[] for _ in c_values]
-itr_linear_list = [[] for _ in c_values]
-nonlinearities = ["Full model"]
-for nonlin in nonlinearities:
+c_values = [1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3]
+solvers = ["GNM", "GNM-RM", "IRM"]
+model_index = ["A", "B", "C"]
+nonlinearities = ["Constant fracture volume and permeability", "Constant fracture permeability", "Full model"]
+for (ind, nonlin) in zip(model_index, nonlinearities):
+    itr_list = [[] for _ in c_values]
+    itr_time_step_list = [[] for _ in c_values]
+    itr_linear_list = [[] for _ in c_values]
     params_init = copy.deepcopy(params_initialize_pressure_3D)
-    if nonlin == "No aperture":
+    if nonlin == "Constant fracture volume and permeability":
         model_class_init = add_mixin(ConstantAperture, ThreeDimInjectionInit)
-    elif nonlin == "No cubic law":
+    elif nonlin == "Constant fracture permeability":
         model_class_init = add_mixin(ConstantCubicLawPermeability, ThreeDimInjectionInit)
     elif nonlin == "Full model":
         model_class_init = ThreeDimInjectionInit
@@ -78,9 +79,9 @@ for nonlin in nonlinearities:
                 time_step_index=0,
                 iterate_index=0,
             )
-    if nonlin == "No aperture":
+    if nonlin == "Constant fracture volume and permeability":
         model_class = add_mixin(InitialCondition, add_mixin(ConstantAperture, ThreeDimInjection))
-    elif nonlin == "No cubic law":
+    elif nonlin == "Constant fracture permeability":
         model_class = add_mixin(InitialCondition, add_mixin(ConstantCubicLawPermeability, ThreeDimInjection))
     elif nonlin == "Full model":
         model_class = add_mixin(InitialCondition, ThreeDimInjection) 
@@ -89,15 +90,10 @@ for nonlin in nonlinearities:
             params = copy.deepcopy(params_injection_3D)
             params["injection_overpressure"] = 0.1 * 1e7
             params["irm_update_strategy"] = True
-            start = time.time()
             [itr_solver, itr_time_step_list_solver, itr_linear_solver] = run_and_report_single(Model=model_class, params=params, c_value=c, solver=solver)
-            end = time.time()
-            print("Time:")
-            print(end-start)
             itr_list[i].append(itr_solver)
             itr_time_step_list[i].append(itr_time_step_list_solver)
             itr_linear_list[i].append(itr_linear_solver)
-        print(f"c-value: {c}")
-        print(itr_time_step_list[i])
-        print(itr_list[i])
-        print(itr_linear_list[i])
+    bar_chart(itr_time_step_list, itr_linear_list, ymin=0, ymax=800, 
+              num_xticks=len(c_values), labels=[f"{x:.0e}" for x in c_values], 
+              file_name=f"bar_chart_model_{ind}_3D", title=f"Model {ind}: {nonlin}")
