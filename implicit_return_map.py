@@ -4,7 +4,6 @@ from typing import Optional
 from functools import partial
 import scipy.sparse as sps
 from typing import TypeVar, Union
-from matplotlib import pyplot as plt
 import logging
 logger = logging.getLogger(__name__)
 Scalar = pp.ad.Scalar

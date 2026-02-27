@@ -4,6 +4,7 @@ from newton_return_map import *
 from implicit_return_map import *
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 
 """Various utility functions for plotting results."""
 
@@ -42,7 +43,7 @@ def bar_chart(itr_time_step_list, lin_list, ymin, ymax, num_xticks, labels, file
                     ax1.bar(pos + foo * width, 1, width, align='center', bottom=bottom, linewidth=0.5, color='black')
                     bottom += 1
                     continue
-                elif value == -500:  # Diverged to infinity
+                elif value == -500:  # Diverged to infinity, or the linear solver failed to converge.
                     diverged = True
                     continue
                 color = colors[j][color_counter]
@@ -142,6 +143,8 @@ def run_and_report_single(Model,
             res = model.nonlinear_solver_statistics.residual_norms
             if model.params.get("make_fig5", False):
                 plt.semilogy(np.arange(0, len(res)), res, color=color)
+                ax = plt.gca()
+                ax.xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
         except (Exception, RuntimeError) as e:
             print(e)
             itr_linear = sum(model.nonlinear_solver_statistics.num_krylov_iters)
@@ -153,6 +156,8 @@ def run_and_report_single(Model,
                 itr = "NC"
             if model.params.get("make_fig5", False):
                 plt.semilogy(np.arange(0, len(res)), res, color=color)
+                ax = plt.gca()
+                ax.xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
     if solver == "IRM":
         try:
             run_implicit_return_map_model(model, params)
@@ -170,6 +175,8 @@ def run_and_report_single(Model,
                 itr = "NC"
             if model.params.get("make_fig5", False):
                 plt.semilogy(np.arange(0, len(res)), res, color="#A26105")
+                ax = plt.gca()
+                ax.xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
     return [itr, itr_time_step_list, itr_linear]
 
 
@@ -201,6 +208,10 @@ class SumTimeSteps:
         self.total_itr += self.nonlinear_solver_statistics.num_iteration
         if self.nonlinear_solver_statistics.residual_norms[-1] > self.params["nl_divergence_tol"]:
             self.itr_time_step.append(-500)  # Marker for divergence to infinity.
+        elif self.nonlinear_solver_statistics.num_iteration == 31:  # Do not add custom marker for the solver reaching the maximum number of iterations.
+            pass
+        else:  # In this case, the linear solver failed to converge, add custom marker for this.
+           self.itr_time_step.append(-500) 
         self.itr_time_step.append(self.nonlinear_solver_statistics.num_iteration)
         if self.total_itr >= self.params.get("max_total_iterations", 801):
             raise ValueError("Simulation exceeded maximum allowed total iterations.")
