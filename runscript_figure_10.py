@@ -1,4 +1,5 @@
 import os
+import re
 os.environ["MKL_NUM_THREADS"] = "1" 
 os.environ["NUMEXPR_NUM_THREADS"] = "1" 
 os.environ["OMP_NUM_THREADS"] = "1"
@@ -54,6 +55,7 @@ class ThreeDimInjection(EllipticFractureNetwork,
 
 
 c_values = [1e0]
+labels = [re.sub(r'e-0*(\d+)', r'e-\1', re.sub(r'e\+0*(\d+)', r'e\1', f"{x:.0e}")) for x in c_values]
 solvers = ["GNM"]
 itr_list = [[] for _ in c_values]
 itr_time_step_list = [[] for _ in c_values]
@@ -75,13 +77,9 @@ for (i, c) in enumerate(c_values):
     for solver in solvers:     
         params = copy.deepcopy(params_injection_3D_hard)
         params["injection_overpressure"] = 0.1 * 1e7
-        start = time.time()
         [itr_solver, itr_time_step_list_solver, itr_linear_solver] = run_and_report_single(Model=model_class, params=params, c_value=c, solver=solver)
-        end = time.time()
-        print(f"c-value: {c}, solver: {solver}, time: {end-start} seconds")
-        print(f"Nonlinear iterations: {itr_solver}")
-        print(f"Linear iterations: {itr_linear_solver}")
-        print(f"Nonlinear iteration list: {itr_time_step_list_solver}")
         itr_list[i].append(itr_solver)
         itr_time_step_list[i].append(itr_time_step_list_solver)
         itr_linear_list[i].append(itr_linear_solver)
+bar_chart(itr_time_step_list, itr_linear_list, ymin=0, ymax=800, ymax_lin=20000, 
+        num_xticks=len(c_values), labels=labels, file_name="bar_chart_difficult_3D", title="Model C: Full model", difficult_3D_study=True)

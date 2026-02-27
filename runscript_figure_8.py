@@ -1,4 +1,5 @@
 import os
+import re
 os.environ["MKL_NUM_THREADS"] = "1" 
 os.environ["NUMEXPR_NUM_THREADS"] = "1" 
 os.environ["OMP_NUM_THREADS"] = "1"
@@ -54,6 +55,7 @@ class ThreeDimInjection(EllipticFractureNetwork,
     pass
 
 c_values = [1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3]
+labels = [re.sub(r'e-0*(\d+)', r'e-\1', re.sub(r'e\+0*(\d+)', r'e\1', f"{x:.0e}")) for x in c_values]
 solvers = ["GNM", "GNM-RM", "IRM"]
 model_index = ["A", "B", "C"]
 nonlinearities = ["Constant fracture volume and permeability", "Constant fracture permeability", "Full model"]
@@ -95,5 +97,5 @@ for (ind, nonlin) in zip(model_index, nonlinearities):
             itr_time_step_list[i].append(itr_time_step_list_solver)
             itr_linear_list[i].append(itr_linear_solver)
     bar_chart(itr_time_step_list, itr_linear_list, ymin=0, ymax=800, 
-              num_xticks=len(c_values), labels=[f"{x:.0e}" for x in c_values], 
+              num_xticks=len(c_values), labels=labels, 
               file_name=f"bar_chart_model_{ind}_3D", title=f"Model {ind}: {nonlin}")
