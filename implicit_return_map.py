@@ -4,6 +4,7 @@ from typing import Optional
 from functools import partial
 import scipy.sparse as sps
 from typing import TypeVar, Union
+from matplotlib import pyplot as plt
 import logging
 logger = logging.getLogger(__name__)
 Scalar = pp.ad.Scalar
@@ -289,7 +290,6 @@ class ImplicitReturnMap:
         self.outer_loop_itr = 0  # Reset outer loop counter for next time step.
         # self.itr_time_step.append(self.itr_time_step_counter)
         self.itr_time_step_counter = 0
-        print("Converged")
 
     def after_outer_loop_failure(self) -> None:
         """Method to be called if the outer loop fails to converge."""
@@ -300,7 +300,6 @@ class ImplicitReturnMap:
             # Update the time step magnitude if the dynamic scheme is used.
             # Note: It will also raise a ValueError if the minimal time step is reached.
             self.time_manager.compute_time_step(recompute_solution=True)
-
             # Reset the iterate values. This ensures that the initial guess for an
             # unknown time step equals the known time step.
             prev_solution = self.equation_system.get_variable_values(time_step_index=0)
@@ -365,7 +364,6 @@ def run_implicit_return_map_model(model, params: dict) -> None:
             tol_residual = params["nl_convergence_tol_res"]
             if outer_increment_norm < tol_outer_increment and residual_norm < tol_residual:
                 converged = True
-
         if converged:
             model.after_outer_loop_convergence(model.outer_loop_itr)
         else:
