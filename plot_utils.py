@@ -8,16 +8,20 @@ import matplotlib.pyplot as plt
 """Various utility functions for plotting results."""
 
 def bar_chart(itr_time_step_list, lin_list, ymin, ymax, num_xticks, labels, file_name, 
-              title=None, grid_study=False):
+              ymax_lin=9000, title=None, difficult_3D_study=False):
     width = 0.1
     diverged = False
-    indices = ['A', 'B', 'C']
-    positions = [i * 0.5 for i in range(num_xticks)]
-    positions_grid = [0.5*(i + 2*offset) for i in range(num_xticks) for offset in [-width, 0, width]]
-    positions2 = [-1, 0, 1]
+    indices = ['A', 'B', 'C'] if not difficult_3D_study else ['A', 'B']
+    positions = [i * 0.5 for i in range(num_xticks)]  # Center of x-ticks.
+    offsets = [-1, 0, 1]  # Offset of bars clustered around each x-tick.
+    offsets_3D_hard = [-0.5, 0.5]  # Offset of bars for the most difficult 3D case, which uses only two solvers instead of three.
+    positions2 = offsets_3D_hard if difficult_3D_study else offsets
     colors = [["#0059FF", "#03b7ff", "#00fff7"], 
               ["#ff0000", "#FF00C3", "#c800ff"],
               ["#A26105", "#FABA09FF", "#FFEE06FF"]]
+    if difficult_3D_study:
+        colors = [["#03b7ff"], 
+              ["#ff6363"]] 
     _, ax1 = plt.subplots()
     ax1.set_ylim(ymin, ymax)
     _, ymax = ax1.get_ylim()
@@ -43,29 +47,29 @@ def bar_chart(itr_time_step_list, lin_list, ymin, ymax, num_xticks, labels, file
                     continue
                 color = colors[j][color_counter]
                 if value==31 or diverged==True:
+                    # Bar with hatched lines if the solver did not converge, otherwise a normal bar.
                     bar = ax1.bar(pos + foo * width, value, width, align='center', bottom=bottom, hatch='///', linewidth=0.5, color=color, hatch_linewidth=3)
                     diverged = False
                 else:
                     bar = ax1.bar(pos + foo * width, value, width, align='center', bottom=bottom, linewidth=0.5, color=color)
                 bottom += value
-            if bottom > ymax:
+            vals = df.loc[ind].dropna().values
+            if vals[-1] == 31 or vals[-2] == -500 or bottom > ymax:  # Indicate stopped simulations by a cross.
                 rect = bar[0]
                 xmid = rect.get_x() + rect.get_width() / 2
-                ax1.plot(xmid, ymax * 1.01, marker=(3,0,0), markersize=12, color='red', clip_on=False)
+                if bottom > ymax:
+                    y = ymax + 2
+                else:
+                    y = rect.get_y() + rect.get_height()
+                ax1.plot(xmid, y + 15, marker='x', markersize=10, mew=1.5, color='red', clip_on=False)
             else:
-                vals = df.loc[ind].dropna().values
-                # First case below is when the solver used the max amount of allowed iterations.
-                # Second case below is when the solver diverged to infinity.
-                if not vals[-1] == 31 and not vals[-2] == -500:
-                    ax2.plot(pos + foo * width, lin, marker='o', color='black')
-    if grid_study==True:
-        plt.xticks(positions_grid, labels)
-    else:
-        plt.xticks(positions, labels)
+                # If the simulation was not stopped, plot the number of iterations of the linear solver.
+                ax2.plot(pos + foo * width, lin, marker='o', color='black')
+    plt.xticks(positions, labels)
     ax1.set_xlabel("c-value [GPa/m]", fontsize=14)
     ax1.set_ylabel("Nonlinear iterations", fontsize=14)
-    ax2.set_ylabel("Linear iterations", fontsize=14)
-    ax2.set_ylim(0, 9000)
+    ax2.set_ylabel("GMRES iterations", fontsize=14)
+    ax2.set_ylim(0, ymax_lin)
     plt.title(title, fontsize=14, pad=15)
     plt.savefig(file_name, dpi=600, bbox_inches="tight")
 
