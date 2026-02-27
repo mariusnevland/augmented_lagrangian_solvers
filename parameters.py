@@ -70,7 +70,7 @@ time_manager_injection = pp.TimeManager(
         iter_optimal_range=(4, 20),
         iter_relax_factors=(0.7, 3.0),
         constant_dt=False, recomp_factor=0.5,
-        recomp_max=6, print_info=True
+        recomp_max=6, print_info=False
     )
 
 
@@ -83,7 +83,7 @@ time_manager_injection_3D = pp.TimeManager(
         iter_optimal_range=(8, 20),
         iter_relax_factors=(0.7, 3.0),
         constant_dt=False, recomp_factor=0.5,
-        recomp_max=6, print_info=True
+        recomp_max=6, print_info=False
     )
 
 
@@ -95,7 +95,7 @@ time_manager_injection_3D_hard = pp.TimeManager(
         iter_optimal_range=(10, 20),
         iter_relax_factors=(0.7, 3.0),
         constant_dt=False, recomp_factor=0.5,
-        recomp_max=6, print_info=True
+        recomp_max=6, print_info=False
     )
 
 params_initialization = {
