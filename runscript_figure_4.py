@@ -1,4 +1,5 @@
 import os
+import re
 os.environ["MKL_NUM_THREADS"] = "1" 
 os.environ["NUMEXPR_NUM_THREADS"] = "1" 
 os.environ["OMP_NUM_THREADS"] = "1"
@@ -48,6 +49,7 @@ class SimpleInjection(FractureNetwork2D,
 
 
 c_values = [1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3]
+labels = [re.sub(r'e-0*(\d+)', r'e-\1', re.sub(r'e\+0*(\d+)', r'e\1', f"{x:.0e}")) for x in c_values]
 solvers = ["GNM", "GNM-RM", "IRM"]
 model_index = ["A", "B", "C"]
 nonlinearities = ["Constant fracture volume and permeability", "Constant fracture permeability", "Full model"]
@@ -82,17 +84,16 @@ for (ind, nonlin) in zip(model_index, nonlinearities):
     for (i, c) in enumerate(c_values):
         for solver in solvers:
             params = copy.deepcopy(params_injection_2D)
-            # A different linear solver configuration is needed for certain cases.    
-            if nonlin == "Constant fracture volume and permeability" and solver == "IRM" and c == 1e3:
-                params["linear_solver"] = linear_solver_ilu1
-            elif nonlin == "Constant fracture permeability" and solver == "IRM" and c == 1e3:
-                params["linear_solver"] = linear_solver_ilu3
             params["injection_overpressure"] = 0.1 * 1e7
             params["irm_update_strategy"] = True
             [itr_solver, itr_time_step_list_solver, itr_linear_solver] = run_and_report_single(Model=model_class, params=params, c_value=c, solver=solver)
             itr_list[i].append(itr_solver)
             itr_time_step_list[i].append(itr_time_step_list_solver)
             itr_linear_list[i].append(itr_linear_solver)
+            print(f"Solver: {solver}, c-value: {c}, model: {nonlin}")
+            print(f"Nonlinear iterations: {itr_solver}")
+            print(f"Linear iterations: {itr_linear_solver}")
+            print(f"Nonlinear iteration list: {itr_time_step_list_solver}")
     bar_chart(itr_time_step_list, itr_linear_list, ymin=0, ymax=800, 
-              num_xticks=len(c_values), labels=[f"{x:.0e}" for x in c_values], 
+              num_xticks=len(c_values), labels=labels, 
               file_name=f"bar_chart_model_{ind}_2D", title=f"Model {ind}: {nonlin}")

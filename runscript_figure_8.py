@@ -96,6 +96,10 @@ for (ind, nonlin) in zip(model_index, nonlinearities):
             itr_list[i].append(itr_solver)
             itr_time_step_list[i].append(itr_time_step_list_solver)
             itr_linear_list[i].append(itr_linear_solver)
+            print(f"Solver: {solver}, c-value: {c}, model: {nonlin}")
+            print(f"Nonlinear iterations: {itr_solver}")
+            print(f"Linear iterations: {itr_linear_solver}")
+            print(f"Nonlinear iteration list: {itr_time_step_list_solver}")
     bar_chart(itr_time_step_list, itr_linear_list, ymin=0, ymax=800, 
               num_xticks=len(c_values), labels=labels, 
               file_name=f"bar_chart_model_{ind}_3D", title=f"Model {ind}: {nonlin}")

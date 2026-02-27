@@ -54,9 +54,9 @@ class ThreeDimInjection(EllipticFractureNetwork,
     pass
 
 
-c_values = [1e0]
+c_values = [1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3]
 labels = [re.sub(r'e-0*(\d+)', r'e-\1', re.sub(r'e\+0*(\d+)', r'e\1', f"{x:.0e}")) for x in c_values]
-solvers = ["GNM"]
+solvers = ["GNM", "GNM-RM"]
 itr_list = [[] for _ in c_values]
 itr_time_step_list = [[] for _ in c_values]
 itr_linear_list = [[] for _ in c_values]
@@ -81,5 +81,9 @@ for (i, c) in enumerate(c_values):
         itr_list[i].append(itr_solver)
         itr_time_step_list[i].append(itr_time_step_list_solver)
         itr_linear_list[i].append(itr_linear_solver)
+        print(f"Solver: {solver}, c-value: {c}")
+        print(f"Nonlinear iterations: {itr_solver}")
+        print(f"Linear iterations: {itr_linear_solver}")
+        print(f"Nonlinear iteration list: {itr_time_step_list_solver}")
 bar_chart(itr_time_step_list, itr_linear_list, ymin=0, ymax=800, ymax_lin=20000, 
         num_xticks=len(c_values), labels=labels, file_name="bar_chart_difficult_3D", title="Model C: Full model", difficult_3D_study=True)
