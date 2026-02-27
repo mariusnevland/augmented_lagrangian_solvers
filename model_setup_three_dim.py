@@ -100,7 +100,7 @@ class LithoStaticAnisotopic(LithoStaticTraction3D):
         cell_volumes = boundary_grid.cell_volumes
         depth = self._depth(boundary_grid.cell_centers[2,:])
         lithostatic = self.lithostatic_pressure(depth)
-        scale_x, scale_y, scale_z = 0.6, 0.55, 1
+        scale_x, scale_y, scale_z = 0.6, 0.4, 1
         values[0, east] = -scale_x * lithostatic[east] * cell_volumes[east]
         values[2, top] = -scale_z * lithostatic[top] * cell_volumes[top]
         values[0, west] = scale_x * lithostatic[west] * cell_volumes[west]
@@ -212,7 +212,8 @@ class PressureConstraintWell3D:
 
         # Update injection pressure
         injection_index = self.time_manager._scheduled_idx
-        injection_schedule = [1, 1, 2, 2, 3, 3]
+        # injection_schedule = [1, 1, 2, 2, 3, 3]
+        injection_schedule = [1, 1]
         injection_overpressure = self.params.get("injection_overpressure", 0)
         current_injection_overpressure = injection_schedule[injection_index-1] * injection_overpressure
         for sd in self.mdg.subdomains(return_data=False):
